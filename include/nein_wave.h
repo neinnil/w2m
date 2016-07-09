@@ -107,6 +107,7 @@ typedef struct _WAVEINFO_T {
 /* getWaveInfo, getWaveInfoFromFile */
 extern WAVEINFO_BASE_T* getWaveInfoFromFile(const char* file);
 extern WAVEINFO_BASE_T* getWaveInfo(FILE *infp);
+/** inline function 으로 */
 extern int	isSupportedWAVEFile(WAVEINFO_BASE_T* waveinfo);
 extern short getWAVEFormatTag(WAVEINFO_BASE_T* waveinfo);
 extern short getWAVEChannels(WAVEINFO_BASE_T* waveinfo);
@@ -114,9 +115,11 @@ extern short getWAVESampleRate(WAVEINFO_BASE_T* waveinfo);
 extern short getWAVEBitsPerSample(WAVEINFO_BASE_T* waveinfo);
 extern int	 getWAVEDataLength (DATA_CHUNK_T	*data);
 extern WAVE_PCM_T* convtWAVEBASE2PCM(WAVEINFO_BASE_T* waveinfo);
-
+extern int	 isWAVE_IEEE_FLOAT(WAVEINFO_BASE_T *waveinfo);
+extern int	 isWAVE_EIGHTBITSTREAM(WAVEINFO_BASE_T *waveinfo);
+/** here ..(end) */
 /* for debugging */
-/** move following functions to uni test. 
+/* move following functions to uni test. */ 
 void printWaveInfo(WAVEINFO_T *);
 void printInt32(FILE* infp, const char *name);
 void printInt16(FILE* infp, const char *name);
