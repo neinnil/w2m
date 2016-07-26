@@ -38,7 +38,7 @@ void sighandler(int sno)
 	}
 }
 
-int setSigHandler(vodi)
+int setSigHandler(void)
 {
 	struct sigaction sa;
 	int	   rv = 0;;
