@@ -15,21 +15,20 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 **/
+#include <stdlib.h>
 #include <errno.h>
-
-struct nlist {
-	struct nlist *next;
-	struct nlist *prev;
-};
+#include "list.h"
 
 int alloc_list(void **p, size_t nSize){
-	if (nSize < sizeof(struct nlist)){
-		nSize = sizeof(struct nlist);
+	int ret = 0;
+	if (nSize < NLISTSZ){
+		nSize = NLISTSZ;
 	}
-	*p = malloc(nSize);
-	init_list((struct nlist*)*p);
-	return nSize;
+	*p = malloc(nSize+NLISTSZ);
+	ret = init_list((struct nlist*)*p);
+	return ret?-ret:nSize;
 }
+
 int init_list(struct nlist *p){
 	if (NULL == p){
 		return -EINVAL;
