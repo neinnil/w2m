@@ -22,6 +22,7 @@
 extern "C" {
 #endif
 
+	/* signal handler setting. */
 struct sighandle_set {
 	int signo;
 	void (*hndl)(int);
@@ -31,9 +32,30 @@ typedef struct sighandle_set sighandle_set;
 extern int setSigHandler(sighandle_set *);
 
 extern int walkThDir(const char *dpath, void(*doing)(const char *fpath));
-extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 
+/* releated to thread */
+struct _nil_task {
+	pthread_t tid;
+	pthread_attr_t *attr;
+#ifdef __USE_XOPEN2K
+	pthread_barrier_t *barrier;
+#endif
+	int		sched_priority;
+	int		sched_policy;
+	int		onCore;
+	void	*private;
+	void*	(*work_run)(void *);
+};
+
+#define RUN_ON_LINUX 1
+#define RUN_ON_WIN_MINGW 2
+#define RUN_ON_OTHERS 4
+
+typedef struct _nil_task  nil_task_t;
+
+extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 extern int getNumOfCores(int *core);
+extern int createTask(nil_task_t *taskarg);
 
 
 #ifdef __cplusplus

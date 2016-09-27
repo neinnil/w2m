@@ -16,22 +16,90 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fts.h>
 #include "nein_osa.h"
 
 stataic int sysCore = 0;
 
+static void *_task_work(void *taskarg);
+static int creatTask(nil_task_t *taskarg);
+
+static int inline _initAttr(pthread_attr_t **attr){
+	if (NULL != attr) {
+		if (NULL == *attr){
+			pthread_attr_t *tattr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+			if (NULL!=tattr) {
+				pthread_attr_init(tattr);
+				*attr = tattr;
+				return 0;
+			}
+			return -ENOMEM;
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
+
 int setSigHandler(sighandle_set *sigset)
 {
+	int	rc = 0;
 	struct sigaction sa;
 	sa.sa_handler = (void (*)(int))(sigset->hndl);
 	sigemptyset (&sa.sa_mask);
 	sa.sa_flags = 0;
-	sigaction (sigset->signo, &sa, NULL);
-	return 0;
+	if (0!=(rc=sigaction (sigset->signo, &sa, NULL)))
+	{
+		rc = -errno;
+	};
+	return rc;
+}
+
+static int fts_comp(const FTSENT **l, const FTSENT **r)
+{
+	FTSENT *lp, *rp;
+	int rv = -1;
+
+	if ( !l || !r || !*l || !*r ) return rv;
+
+	lp = (FTSENT*)*l;
+	rp = (FTSENT*)*r;
+
+	rv = strcmp (lp->fts_path, rp->fts_path);
+
+	if (rv != 0) return rv;
+
+	return strcmp(lp->fts_name, rp->fts_name);
 }
 
 int walkThDir(const char *dpath, void(*doing)(const char *fpath))
 {
+	FTS *pfts = NULL;
+	FTSENT	*pfte = NULL;
+	FTSENT  *pchild = NULL;
+	int fts_option = FTS_NOCHDIR ; //FTS_LOGICAL|FTS_NOCHDIR; 
+
+	if (!(pfts = fts_open (dpath, fts_option, fts_comp)) ){
+		printf("fts_open error. \n");
+		return 2;
+	}
+	while (NULL!=(pfte=fts_read(pfts)) ) {
+		if(NULL != (pchild=fts_children(pfts, fts_option))) {
+			printf("fts_children\n");
+			while (pchild && pchild->fts_link) {
+				pchild = pchild->fts_link;
+				if (pchild->fts_info == FTS_F) {
+					if (doing) {
+						doing ((const char*)pchild->fts_path);
+					}
+				}
+			}
+		}
+	}
+	fts_close (pfts);
+
 	return 0;
 }
 
@@ -95,4 +163,110 @@ int getNumOfCores(int *core)
 	if(nCore < 1) nCore = 1;
 	*core = sysCore = nCore;
 	return nCore;
+}
+
+int creatTask(nil_task_t *taskarg)
+{
+	int ret = 0;
+	pthread_t tid = (pthread_t)0;
+	pthread_attr_t	*attr = NULL;
+	pthread_barrier_t *barrier = NULL;
+
+	if (NULL == taskarg){
+		return -EINVAL;
+	}
+
+	if (taskarg->attr)
+		attr = taskarg->attr;
+	if (-1 !=taskarg->sched_policy) {
+		if (-1 !=taskarg->sched_priority){
+			if (NULL==attr){
+				attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+				if (NULL != attr) {
+					if(0==pthread_attr_init(attr)) {
+					}
+				}
+			}
+		}
+	}
+#if defined(__LINUX__)
+	if ( -1 != taskarg->onCore ) {
+		assign2core ( RUN_ON_LINUX, taskarg->onCore, &attr);
+	}
+#endif
+
+	ret = pthread_create(&tid, attr, _task_work, (void*)taskarg);
+	if (!ret)
+		taskarg->tid = tid;
+	return ret;
+}
+
+void *_task_work(void *arg)
+{
+	nil_task_t *taskarg = NULL;
+	if (!arg) {
+		fprintf(stderr,"%s[%d] null argument.\n",__FUNCTION__,__LINE__);
+		return (void*)0;
+	}
+	taskarg = (nil_task_t*)arg;
+#if defined(__MINGW__)
+	if (taskarg->onCore>=0){
+		pthread_set_processor(taskarg->onCore);
+	}
+#endif
+#ifdef __USE_XOPEN2K
+	if (taskarg->barrier)
+		barrier = taskarg->barrier;
+	if (barrier) 
+		pthread_barrier_wait(barrier);
+#endif
+	return (void*)taskarg->work_run(taskarg->private);
+}
+
+
+int assign2core(int run_on, int numCore) 
+{
+#if defined (__LINUX__)
+	if (RUN_ON_LINUX != run_on) return -1;
+
+#else if defined(__MINGW__)
+	if (RUN_ON_WIN_MINGW != run_on) return -1;
+#endif
+}
+int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
+{
+#if defined (__LINUX__)
+#if defined (_GNU_SOURCE)
+	pthread_attr_t *attr = NULL;
+	cpu_set_t cpuset;
+	int		  rc = 0;
+	if (RUN_ON_LINUX != os_run) {
+		return -1;
+	}
+	/* if (numCore < 0) return -1; */
+	attr = *ppattr;
+	if (NULL==attr) {
+		attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+		if (NULL == attr) {
+			return -1;
+		}
+		if(0!=pthread_attr_init(attr)) {
+			free(attr);
+			return -1;
+		}
+		*ppattr = attr;
+	}
+	CPU_ZERO(&cpuset);
+	CPU_SET(numCore,&cpuset);
+	rc = pthread_attr_setaffinity_np(attr,sizeof(cpu_set_t),cputset);
+	return rc;
+#else
+	return 0;
+#endif
+#else if defined(__MINGW__)
+	if (RUN_ON_WIN_MINGW != os_run) {
+		return -1;
+	}
+	return 0;
+#endif
 }

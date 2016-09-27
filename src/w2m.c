@@ -6,8 +6,8 @@
 #include <string.h> /* for strerror */
 #include <errno.h>
 
-#define NIL_DEBUG(fmt,arg...) do {
-	fprintf(stderr, fmt##arg);
+#define NIL_DEBUG(fmt, ...) do {
+	fprintf(stderr, fmt##__VA_ARGS__);
 }while(0)
 
 void showUsage(char *progname){
@@ -39,13 +39,13 @@ void sighandler(int sno)
 	}
 }
 
-int setSigHandler(void)
+static int set_signal(void)
 {
-	struct sigaction sa;
+	struct sighandle_set priHdl;
+	priHdl.signo = SIGINT;
+	priHdl.hndl = sighandler;
 	int	   rv = 0;;
-	memset (&sa, 0x00, sizeof(struct sigaction));
-	sa.sa_handler = sighandler;
-	if(0!=(rv = sigaction (SIGINT, &sa, NULL)))
+	if(0!=(rv = setSigHandler(priHdl)))
 	{
 		rv = -errno;
 	}
@@ -76,87 +76,6 @@ static int isDirectory(const char *path, DIR** ppdir)
 		closedir(pdir);
 	return 0;
 }
-
-struct _nil_task {
-	pthread_t tid;
-	pthread_attr_t *attr;
-#ifdef __USE_XOPEN2K
-	pthread_barrier_t *barrier;
-#endif
-	int		sched_priority;
-	int		sched_policy;
-	int		onCore;
-	void	*private;
-	void*	(*work_run)(void *);
-};
-
-typedef struct _nil_task  nil_task_t;
-
-static void *_task_work(void *taskarg);
-static int creatTask(nil_task_t *taskarg);
-static int inline _initAttr(pthread_attr_t **attr){
-	if (NULL != attr) {
-		if (NULL == *attr){
-			pthread_attr_t *tattr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
-			if (NULL!=tattr) {
-				pthread_attr_init(tattr);
-				*attr = tattr;
-				return 0;
-			}
-			return -ENOMEM;
-		}
-		return 0;
-	}
-	return -EINVAL;
-}
-
-int creatTask(nil_task_t *taskarg)
-{
-	int ret = 0;
-	pthread_t tid = (pthread_t)0;
-	pthread_attr_t	*attr = NULL;
-	pthread_barrier_t *barrier = NULL;
-	
-	if (NULL == taskarg){
-		return -EINVAL;
-	}
-	if (taskarg->attr)
-		attr = taskarg->attr;
-#ifdef __USE_XOPEN2K
-	if (taskarg->barrier)
-		barrier = taskarg->barrier;
-	if (barrier) 
-		pthread_barrier_wait(barrier);
-#endif
-	if (-1 !=taskarg->sched_policy) {
-		if (-1 !=taskarg->sched_priority){
-			if (NULL==attr){
-				attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
-				if (NULL != attr) {
-					if(0==pthread_attr_init(attr)) {
-					}
-				}
-			}
-		}
-	}
-#if !defined(__MINGW__) && defined(__LINUX__)
-	if ( -1 != taskarg->onCore ) {
-		if (NULL==attr) {
-			attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
-			if (NULL != attr) {
-				if(0==pthread_attr_init(attr)) {
-				}
-			}
-		}
-	}
-#endif
-
-	ret = pthread_create(&tid, attr, _task_work, (void*)taskarg);
-	if (!ret)
-		taskarg->tid = tid;
-	return ret;
-}
-
 
 int main (int ac, char **av)
 {
