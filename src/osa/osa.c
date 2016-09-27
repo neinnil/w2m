@@ -156,9 +156,9 @@ int getNumOfCores(int *core)
 #if defined(__LINUX__) || defined (__linux__) || defined(__APPLE__)
 	nCore = sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined (__MINGW32__) 
-#if defined (PTW32_VERSION)
+//#if defined (PTW32_VERSION)
 	nCore = pthread_num_processors_np();
-#endif
+//#endif
 #endif
 	if(nCore < 1) nCore = 1;
 	*core = sysCore = nCore;
@@ -191,7 +191,7 @@ int creatTask(nil_task_t *taskarg)
 	}
 #if defined(__LINUX__)
 	if ( -1 != taskarg->onCore ) {
-		assign2core ( RUN_ON_LINUX, taskarg->onCore, &attr);
+		assign2coreInMain( RUN_ON_LINUX, taskarg->onCore, &attr);
 	}
 #endif
 
@@ -209,12 +209,10 @@ void *_task_work(void *arg)
 		return (void*)0;
 	}
 	taskarg = (nil_task_t*)arg;
-#if defined(__MINGW__)
-	if (taskarg->onCore>=0){
-		pthread_set_processor(taskarg->onCore);
-	}
+#if defined(__MINGW32__)
+	(void)assign2core(RUN_ON_WIN_MINGW, taskarg->onCore);
 #endif
-#ifdef __USE_XOPEN2K
+#if defined(__USE_XOPEN2K) || defined(__MINGW32__)
 	if (taskarg->barrier)
 		barrier = taskarg->barrier;
 	if (barrier) 
@@ -226,20 +224,22 @@ void *_task_work(void *arg)
 
 int assign2core(int run_on, int numCore) 
 {
+	int rc = 0;
 #if defined (__LINUX__)
 	if (RUN_ON_LINUX != run_on) return -1;
 
-#else if defined(__MINGW__)
+#else if defined(__MINGW32__)
 	if (RUN_ON_WIN_MINGW != run_on) return -1;
+	rc = pthread_set_num_processors_np(numCore);
 #endif
+	return rc;
 }
 int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 {
-#if defined (__LINUX__)
-#if defined (_GNU_SOURCE)
+	int rc = 0;
+#if defined (__LINUX__) && defined (_GNU_SOURCE)
 	pthread_attr_t *attr = NULL;
 	cpu_set_t cpuset;
-	int		  rc = 0;
 	if (RUN_ON_LINUX != os_run) {
 		return -1;
 	}
@@ -259,14 +259,13 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 	CPU_ZERO(&cpuset);
 	CPU_SET(numCore,&cpuset);
 	rc = pthread_attr_setaffinity_np(attr,sizeof(cpu_set_t),cputset);
-	return rc;
-#else
-	return 0;
-#endif
-#else if defined(__MINGW__)
+#elif defined(__MINGW32__)
 	if (RUN_ON_WIN_MINGW != os_run) {
 		return -1;
 	}
-	return 0;
+	rc = pthread_set_num_processors_np(numCore);
+#else
+	#warning "Not supported"
 #endif
+	return rc;
 }
