@@ -27,25 +27,10 @@ stataic int sysCore = 0;
 static void *_task_work(void *taskarg);
 static int creatTask(nil_task_t *taskarg);
 
-static int inline _initAttr(pthread_attr_t **attr){
-	if (NULL != attr) {
-		if (NULL == *attr){
-			pthread_attr_t *tattr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
-			if (NULL!=tattr) {
-				pthread_attr_init(tattr);
-				*attr = tattr;
-				return 0;
-			}
-			return -ENOMEM;
-		}
-		return 0;
-	}
-	return -EINVAL;
-}
-
 int setSigHandler(sighandle_set *sigset)
 {
 	int	rc = 0;
+#if defined(__LINUX__)
 	struct sigaction sa;
 	sa.sa_handler = (void (*)(int))(sigset->hndl);
 	sigemptyset (&sa.sa_mask);
@@ -53,10 +38,14 @@ int setSigHandler(sighandle_set *sigset)
 	if (0!=(rc=sigaction (sigset->signo, &sa, NULL)))
 	{
 		rc = -errno;
-	};
+	}
+#elif defined (__MINGW32__)
+	rc = signal (sigset->signo, sigset->hndl);
+#endif
 	return rc;
 }
 
+#if defined (__LINUX__)
 static int fts_comp(const FTSENT **l, const FTSENT **r)
 {
 	FTSENT *lp, *rp;
@@ -73,9 +62,25 @@ static int fts_comp(const FTSENT **l, const FTSENT **r)
 
 	return strcmp(lp->fts_name, rp->fts_name);
 }
+#endif
+#if defined (__MINGW32__)
+typedef void(*ftn_call)(const char *path);
+
+static ftn_call walking_dir_doing = NULL;
+int _ftw_fn (const char* path, const struct stat *st, int itype, struct FTW *sftw)
+{
+	if (itype == FTW_F) {
+		if (walking_dir_doing){
+			walking_dir_doing (path);
+		}
+	}
+}
+#endif
 
 int walkThDir(const char *dpath, void(*doing)(const char *fpath))
 {
+	int rc = 0;
+#if defined (__LINUX__)
 	FTS *pfts = NULL;
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
@@ -99,10 +104,31 @@ int walkThDir(const char *dpath, void(*doing)(const char *fpath))
 		}
 	}
 	fts_close (pfts);
-
-	return 0;
+#elif defined (__MINGW32__)
+	walking_dir_doing = doing;
+	if (0!= (rc = nftw(dpath, _ftw_fn, 2048, FTW_PHYS|FTW_MOUNT))) {
+		rc = - errno;
+	}
+#endif
+	return rc; 
 }
 
+
+static int inline _initAttr(pthread_attr_t **attr){
+	if (NULL != attr) {
+		if (NULL == *attr){
+			pthread_attr_t *tattr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+			if (NULL!=tattr) {
+				pthread_attr_init(tattr);
+				*attr = tattr;
+				return 0;
+			}
+			return -ENOMEM;
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
 pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 {
 	pthread_attr_t *pattr = NULL;
@@ -132,7 +158,7 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 			pattr = NULL;
 		}
 	}
-#else if defined(_WIN32_) && defined(PTHREAD_W32)
+#elif defined(_WIN32_) && defined(PTHREAD_W32)
 #else
 #endif
 	return pattr;
