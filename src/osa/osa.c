@@ -260,6 +260,7 @@ int assign2core(int run_on, int numCore)
 #endif
 	return rc;
 }
+
 int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 {
 	int rc = 0;
@@ -294,4 +295,10 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 	#warning "Not supported"
 #endif
 	return rc;
+}
+
+int waitAllTasks(nil_task_t **alltask)
+{
+	nil_task_t *task = NULL;
+	return 0;
 }
