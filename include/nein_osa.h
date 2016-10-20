@@ -18,6 +18,8 @@
 #ifndef _NEIN_OSA_H
 #define _NEIN_OSA_H
 
+#include "list.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -35,6 +37,7 @@ extern int walkThDir(const char *dpath, void(*doing)(const char *fpath));
 
 /* releated to thread */
 struct _nil_task {
+	struct nlist ln;
 	pthread_t tid;
 	pthread_attr_t *attr;
 #ifdef __USE_XOPEN2K
@@ -56,6 +59,7 @@ typedef struct _nil_task  nil_task_t;
 extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 extern int getNumOfCores(int *core);
 extern int createTask(nil_task_t *taskarg);
+extern int waitAllTasks(nil_task_t **alltask);
 
 
 #ifdef __cplusplus
