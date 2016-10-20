@@ -1,6 +1,6 @@
 /**
     list.c. 
-    Copyright (C) 2016  Park, Sangjun
+    Copyright (C) 2016	neinnil@gmail.com
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ int alloc_list(void **p, size_t nSize){
 	if (nSize < NLISTSZ){
 		nSize = NLISTSZ;
 	}
-	*p = malloc(nSize+NLISTSZ);
+	*p = malloc(nSize);
 	ret = init_list((struct nlist*)*p);
 	return ret?-ret:nSize;
 }

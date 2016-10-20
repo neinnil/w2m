@@ -51,7 +51,7 @@ typedef struct _PCM_READER_DATA_T
 	PcmBuffer		pcmfloat;
 	size_t			in_id3v2_size;
 	unsigned char*	in_id3v2_tag;
-	void*			info; /* WAVEINFO_BASE_T or  WAVE_PCM_T */
+	void*			info; /* pointer to WAVE_FILE_INFO_T */
 } pcm_reader_data;
 
 int initPCM_Reader(pcm_reader_data **pcmhandle);
