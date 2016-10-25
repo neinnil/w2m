@@ -29,11 +29,18 @@ struct nlist {
 
 #define NLISTSZ sizeof(struct nlist)
 
+struct nlist_op {
+	int (*append)(struct nlist **h, struct nlist **t, struct nlist *it);
+	int (*remove)(struct nlist **h, struct nlist **t, struct nlist *it);
+	struct nlist* (*next)(struct nlist **h, struct nlist **t, struct nlist **c);
+	struct nlist* (*search)(struct nlist **h, struct nlist **t, int(*comp)(void *, void*));
+};
+
 extern int init_list(struct nlist *p);
 extern int alloc_list(void **userlist, size_t nSize);
 extern int delete_listAll(struct nlist **head);
 extern int delete_item(struct nlist** head, struct nlist* item);
-extern int add_list (struct nlist **p, struct nlist *adding);
+extern int add_list (struct nlist **head, struct nlist *adding);
 extern int insert_list (struct nlist **p, struct nlist *n, struct nlist *ins);
 
 #ifdef __cplusplus

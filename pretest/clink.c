@@ -24,58 +24,34 @@ struct ln {
 	int v;
 };
 
-void add (struct ln **head, struct ln **tail, struct ln *item) 
+void add (struct ln **head, struct ln *item) 
 {
-	if (!head || !tail || !item) {
+	if (!head || !item) {
 		printf("Invalied argument.\n");
 		return;
 	}
-	if (!(*head) && *tail) {
-		printf("broken linked list.\n");
-		assert(0);
-		return;
-	}
+
 	if (!(*head)) {
 		*head = item;
-		*tail = item;
-#if defined(_CIRCULAR_)
 		item->n = item->p = item;
-#endif
 		return ;
 	}
-	(*tail)->n = item;
-	item->p = *tail;
-#if defined(_CIRCULAR_)
+	item->p = (*head)->p;
 	item->n = *head;
-	(*head)->p = item;
-#endif
-	*tail = item;
+	(*head)->p->n = item;
+	(*head)->p = item; /* pointer to tail of the linked list. */
 }
 
-void del (struct ln **head, struct ln **tail, struct ln *item)
+void del (struct ln **head, struct ln *item)
 {
 	if (*head == item) {
+		(*head)->n->p = (*head)->p;
+		(*head)->p->n = (*head)->n;
 		*head = item->n;
-#if defined(_CIRCULAR_)
-		(*head)->p = *tail;
-		(*tail)->n = *head;
-#else
-		(*head)->p = NULL;
-#endif
 		item->n = item->p = NULL;
 		return ;
 	}
-	if (*tail == item) {
-		*tail = item->p;
-#if defined(_CIRCULAR_)
-		(*head)->p = *tail;
-		(*tail)->n = *head;
-#else
-		(*tail)->n = NULL;
-#endif
-		item->n = item->p = NULL;
-		return ;
-	}
+
 	item->p->n = item->n;
 	item->n->p = item->p;
 	item->n = item->p = NULL;
@@ -100,7 +76,7 @@ void print_list(struct ln *head)
 	}
 }
 
-void swap (struct ln **head, struct ln **tail, struct ln *x, struct ln *y)
+void swap (struct ln **head, struct ln *x, struct ln *y)
 {
 	struct ln **xpn, **xnp, **ypn, **ynp;
 	struct ln *xp , *xn, *yp, *yn;
@@ -116,15 +92,13 @@ void swap (struct ln **head, struct ln **tail, struct ln *x, struct ln *y)
 	if (y->n) { ynp = &(y->n->p); yn = y->n; }
 
 	if (xn == y || yn == x ){
-#if defined (_CIRCULAR_)
+		struct ln *prv, *next;
 		if (xn == xp) {
-			/* there are just two elements. so just change head and tail. */
+			printf("Just two elements.\n");
+		/* there are just two elements. so just change the value of head. */
 			*head = (*head)->n;
-			*tail = (*tail)->p;
 			return;
 		}
-#endif
-		struct ln *prv, *next;
 		printf ("neighborhood\n");
 		if (xn == y) {
 			prv = x;
@@ -144,7 +118,6 @@ void swap (struct ln **head, struct ln **tail, struct ln *x, struct ln *y)
 		next->n = prv;
 		prv->n = yn;
 		next->p = xp;
-		
 	} else {
 		x->p = yp; 
 		y->p = xp;
@@ -160,30 +133,16 @@ void swap (struct ln **head, struct ln **tail, struct ln *x, struct ln *y)
 	if ( *head == x ) {
 		printf("head changed. x->y\n");
 		*head = y;
-//		y->p = NULL;
 	} else if ( *head == y ) {
 		printf("head changed. y->x\n");
 		*head = x;
-//		x->p = NULL;
 	}
-
-	if ( *tail == x )  {
-		printf("tail changed. x->y\n");
-		*tail = y;
-//		y->n = NULL;
-	} else if ( *tail == y ) {
-		printf("tail changed. y->x\n");
-		*tail = x;
-//		x->n = NULL;
-	}
-
 }
 
-
+#if 0
 int main (int ac, char** av)
 {
 	struct ln *head = NULL;
-	struct ln *tail = NULL;
 	struct ln a ={ NULL, NULL, 1 };
 	struct ln b ={ NULL, NULL, 2 };
 	struct ln c ={ NULL, NULL, 3 };
@@ -192,102 +151,109 @@ int main (int ac, char** av)
 	struct ln f ={ NULL, NULL, 6 };
 	struct ln g ={ NULL, NULL, 7 };
 	struct ln h ={ NULL, NULL, 8 };
-#if 0 //defined (_CIRCULAR_)
-	a.n = a.p = &a;
-#endif
-	//head = tail = &a;
-	add(&head, &tail, &a);
+
+	add(&head, &a);
 	printf ("Address of head: %p\n", head);
-	add(&head, &tail, &b);
-	
+	print_list (head);
+
+	printf ("Add 2, expected: 1 2\n");
+	add(&head, &b);
 	print_list (head);
 
 	printf("Swap 1, 2, expected: 2 1\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
+
 	printf ("Swap 1, 2, expected: 1 2\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
+
 	printf ("Add 3, expected: 1 2 3\n");
-	add(&head, &tail, &c);
+	add(&head, &c);
 	print_list(head);
+
 	printf("Swap 1, 2, expected: 2 1 3\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
 
 	printf("Swap 1, 2, expected: 1 2 3\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
 
 	printf("Del 2, expected: 1 3\n");
-	del (&head, &tail, &b);
+	del (&head, &b);
 	print_list(head);
 
 	printf("Add 2, expected: 1 3 2\n");
-	add (&head, &tail, &b);
+	add (&head, &b);
 	print_list(head);
 
 	printf ("Del 1, expected: 3 2\n");
-	del (&head, &tail, &a);
+	del (&head, &a);
 	print_list(head);
-
 
 	printf("Add 1, Swap 3, 1,  expected: 1 3 2\n");
-	add(&head, &tail, &a);
-	swap(&head, &tail, &c, &a);
+	add(&head, &a);
 	print_list(head);
-	add(&head, &tail, &d);
-	add(&head, &tail, &e);
-	add(&head, &tail, &f);
-	add(&head, &tail, &g);
-	add(&head, &tail, &h);
+	swap(&head, &c, &a);
+	print_list(head);
+
+	add(&head, &d);
+	add(&head, &e);
+	add(&head, &f);
+	add(&head, &g);
+	add(&head, &h);
 	printf("Swap 3, 6, expected: 1 2 6 4 5 3 7 8\n");
-	swap (&head, &tail, &c, &f);
+	swap (&head, &c, &f);
 	print_list (head);
 
 	printf("Swap 3, 6, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &c, &f);
+	swap (&head, &c, &f);
 	print_list (head);
 
 	printf("Swap 1, 4, expected: 4 2 3 1 5 6 7 8\n");
-	swap (&head, &tail, &a, &d);
+	swap (&head, &a, &d);
 	print_list (head);
 
 	printf("Swap 1, 4, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &a, &d);
+	swap (&head, &a, &d);
 	print_list (head);
 
 	printf("Swap 1, 8, expected: 8 2 3 4 5 6 7 1\n");
-	swap (&head, &tail, &a, &h);
+	swap (&head, &a, &h);
 	print_list (head);
 
 	printf("Swap 1, 8, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &a, &h);
+	swap (&head, &a, &h);
 	print_list (head);
 
 	printf("Swap 2, 3, expected: 1 3 2 4 5 6 7 8\n");
-	swap (&head, &tail, &b, &c);
+	swap (&head, &b, &c);
 	print_list (head);
 
 	printf("Swap 2, 3, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &b, &c);
+	swap (&head, &b, &c);
 	print_list (head);
 
 	printf("Swap 1, 2, expected: 2 1 3 4 5 6 7 8\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
 
 	printf("Swap 1, 2, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &a, &b);
+	swap (&head, &a, &b);
 	print_list (head);
 
 	printf("Swap 7, 8, expected: 1 2 3 4 5 6 8 7\n");
-	swap (&head, &tail, &g, &h);
+	swap (&head, &g, &h);
 	print_list (head);
 
 	printf("Swap 7, 8, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &tail, &g, &h);
+	swap (&head, &g, &h);
 	print_list (head);
 
+	printf ("Del 8, expected: 1 2 3 4 5 6 7\n");
+	del (&head, &h);
+	print_list (head);
 	return 0;
 }
+#endif

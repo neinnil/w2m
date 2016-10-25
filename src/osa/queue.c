@@ -52,18 +52,17 @@ static int nq_lock(nqhdn_t nq)
 
 static int nq_unlock(struct nqueue *nq)
 {
-	int ret = 0;
 	if (NULL == nq) return -EINVAL;
-	ret = pthread_mutex_unlock(nq->mu);
-	return ret;
+	return pthread_mutex_unlock(nq->mu);
 }
 
-int enqueue ( *udata, size_t usize)
+int enqueue (void *udata, size_t usize)
 {
 	int ret = 0;
-	struct nqueue_it *item;
+	struct nqueue_it *item = NULL;
 	ret = alloc_list (&item, sizeof(struct nqueue_it) + uszie)
 	ret = nq_lock ();
+	memcpy (&item->priv_data[0], udata, usize);
 	ret = nq_unlock ();
 	return 0;
 }
