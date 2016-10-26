@@ -45,6 +45,11 @@ void add (struct nlist **head, struct nlist *item)
 void del (struct nlist **head, struct nlist *item)
 {
 	if (*head == item) {
+		if (*head == (*head)->prev) {
+			*head = NULL;	
+			item->next = item->prev = NULL;
+			return ;
+		}
 		(*head)->next->prev = (*head)->prev;
 		(*head)->prev->next = (*head)->next;
 		*head = item->next;
@@ -68,6 +73,10 @@ void print_list(struct nlist *head)
 {
 	int count = 0;
 	struct nlist *tr = head;
+	if (!head) {
+		printf ("There is no item.\n");
+		return ;
+	}
 	printf ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
 	while (tr) {
 		print_item (tr);
@@ -253,6 +262,28 @@ int main (int ac, char** av)
 
 	printf ("Del 8, expected: 1 2 3 4 5 6 7\n");
 	del (&head, &h);
+	print_list (head);
+
+	printf ("Del 7, expected: 1 2 3 4 5 6 \n");
+	del (&head, &g);
+	print_list (head);
+	printf ("Del 6, expected: 1 2 3 4 5\n");
+	del (&head, &f);
+	print_list (head);
+	printf ("Del 5, expected: 1 2 3 4 \n");
+	del (&head, &e);
+	print_list (head);
+	printf ("Del 4, expected: 1 2 3\n");
+	del (&head, &d);
+	print_list (head);
+	printf ("Del 1, expected: 2 3\n");
+	del (&head, &a);
+	print_list (head);
+	printf ("Del 3, expected: 2\n");
+	del (&head, &c);
+	print_list (head);
+	printf ("Del 2, expected: \n");
+	del (&head, &b);
 	print_list (head);
 	return 0;
 }

@@ -40,6 +40,11 @@ static void add (struct nlist **head, struct nlist *item)
 static void del (struct nlist **head, struct nlist *item)
 {
 	if (*head == item) {
+		if (*head == (*head)->prev) {
+			*head = NULL;	
+			item->next = item->prev = NULL;
+			return ;
+		}
 		(*head)->next->prev = (*head)->prev;
 		(*head)->prev->next = (*head)->next;
 		*head = item->next;
@@ -247,6 +252,19 @@ int main (int ac, char** av)
 	print_list (head);
 
 	printf ("Del 8, expected: 1 2 3 4 5 6 7\n");
+	del (&head, &h);
+	print_list (head);
+
+	printf ("Del 7, expected: 1 2 3 4 5 6 \n");
+	del (&head, &h);
+	print_list (head);
+	printf ("Del 6, expected: 1 2 3 4 5\n");
+	del (&head, &h);
+	print_list (head);
+	printf ("Del 5, expected: 1 2 3 4 \n");
+	del (&head, &h);
+	print_list (head);
+	printf ("Del 4, expected: 1 2 3\n");
 	del (&head, &h);
 	print_list (head);
 	return 0;
