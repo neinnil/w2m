@@ -19,6 +19,27 @@
 #include <assert.h>
 #include "nein/list.h"
 
+/* 
+   if item exists in target chain, returns 1.
+   else if not, returns 0.
+   in other case, returns -1.
+*/
+static int exist(struct nlist **head, struct nlist *item)
+{
+	struct nlist *p = NULL;
+	if (!head || !(*head) || !item) {
+		return -1;
+	}
+	p = *head;
+	do {
+		if (p == item) return 1;
+		p = p->next;
+		if (p == *head) break;
+	} while (p);
+
+	return 0;
+}
+
 static void add (struct nlist **head, struct nlist *item) 
 {
 	if (!head || !item) {

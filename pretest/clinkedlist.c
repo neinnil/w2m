@@ -23,6 +23,27 @@ struct nlist {
 	struct nlist *prev, *next;
 	int v;
 };
+/* 
+   if item exists in target chain, returns 1.
+   else if not, returns 0.
+   in other case, returns -1.
+*/
+int exist(struct nlist **head, struct nlist *item)
+{
+	struct nlist *p = NULL;
+	if (!head || !(*head) || !item) {
+		return -1;
+	}
+	p = *head;
+	do {
+		if (p == item) return 1;
+		p = p->next;
+		if (p == *head) break;
+	} while (p);
+
+	return 0;
+}
+
 
 void add (struct nlist **head, struct nlist *item) 
 {
@@ -270,6 +291,12 @@ int main (int ac, char** av)
 	printf ("Del 6, expected: 1 2 3 4 5\n");
 	del (&head, &f);
 	print_list (head);
+
+	ac = exist(&head, &g);
+	printf ("Is there g? %s\n", ac==1?"Yes":(ac==0?"No":"Something wrong."));
+	ac = exist(&head, &e);
+	printf ("Is there e? %s\n", ac==1?"Yes":(ac==0?"No":"Something wrong."));
+
 	printf ("Del 5, expected: 1 2 3 4 \n");
 	del (&head, &e);
 	print_list (head);
