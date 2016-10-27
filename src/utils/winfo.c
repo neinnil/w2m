@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "nein_wave.h"
+#include "nein/wave.h"
 
 int main (int ac, char** av)
 {

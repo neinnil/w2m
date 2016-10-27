@@ -1,6 +1,6 @@
 #!/bin/sh
 
-TOP_DIR=$(PWD)
+TOP_DIR ?= $(PWD)/..
 INCDIR=$(TOP_DIR)/include
 CFLAGS = -I$(INCDIR)
 

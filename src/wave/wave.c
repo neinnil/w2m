@@ -19,8 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
-//#include "nein_error.h"
-#include "nein_wave.h"
+//#include "nein/error.h"
+#include "nein/wave.h"
 
 static
 WAVE_FILE_INFO_T*
@@ -82,12 +82,12 @@ getWaveInfo (FILE* infp)
 		WAVE_PCM_T	*pcm = NULL;
 		pcm = (WAVE_PCM_T*)&(pOut->waveInfo);
 		/* first check RIFF */
-		if (strncmp(pcm->riff.CHKIDS, "RIFF", 4)) {
+		if (strncmp((const char*)pcm->riff.CHKIDS, "RIFF", 4)) {
 			fprintf(stderr,"There is no RIFF header.\n");
 			goto not_wave_file;
 		}
 
-		if (strncmp(pcm->waveid.WAVEIDS,"WAVE", 4)) {
+		if (strncmp((const char*)pcm->waveid.WAVEIDS,"WAVE", 4)) {
 			fprintf(stderr,"There is no WAVE header.\n");
 			goto not_wave_file;
 		}

@@ -1,6 +1,6 @@
 #include <stdlib.h>
-#include "nein_wave.h"
-#include "nein_pcm.h"
+#include "nein/wave.h"
+#include "nein/pcm.h"
 
 /*
    The arugument of initPCM_Reader, pamhandle, must be a null pointer.
