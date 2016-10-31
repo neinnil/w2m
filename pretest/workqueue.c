@@ -39,6 +39,7 @@ struct workqueue {
 	nlist_t	*free;
 	nlist_t	*doing;
 	nlist_t	*done;
+	nlist_t *curFree;
 	pthread_mutex_t	*mu;
 
 	int				nTotal;
@@ -126,7 +127,7 @@ int init_wq (workqueue_t **wq)
 		return -rc;
 	}
 	wq->nTotal = wq->nFree = wq->nDoing = wq->nDone = 0;
-	wq->whole = wq->free = wq->doing = wq->done = NULL;
+	wq->whole = wq->free = wq->doing = wq->done = wq->curFree = NULL;
 	wq->op = &cl_op;
 	return 0;
 }
