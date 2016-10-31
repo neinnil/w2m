@@ -17,19 +17,21 @@
 **/
 #include <stdlib.h>
 #include <errno.h>
-#include "list.h"
+#include "nein/list.h"
 
-int alloc_list(void **p, size_t nSize){
+int alloc_list(void **p, size_t nSize)
+{
 	int ret = 0;
 	if (nSize < NLISTSZ){
 		nSize = NLISTSZ;
 	}
 	*p = malloc(nSize);
 	ret = init_list((struct nlist*)*p);
-	return ret?-ret:nSize;
+	return ret?ret:nSize;
 }
 
-int init_list(struct nlist *p){
+int init_list(struct nlist *p)
+{
 	if (NULL == p){
 		return -EINVAL;
 	}
@@ -37,7 +39,8 @@ int init_list(struct nlist *p){
 	return 0;
 }
 
-int add_list (struct nlist **p, struct nlist *adding) {
+int add_list (struct nlist **p, struct nlist *adding)
+{
 	struct nlist *pt = NULL;
 	if (NULL == p || NULL == adding){
 		return -EINVAL;
@@ -55,7 +58,8 @@ int add_list (struct nlist **p, struct nlist *adding) {
 	return 0;
 }
 
-int insert_list (struct nlist **p, struct nlist *n, struct nlist *inserting) {
+int insert_list (struct nlist **p, struct nlist *n, struct nlist *inserting)
+{
 	if (NULL == inserting || NULL == p) 
 		return -EINVAL;
 	if (NULL == n) {
@@ -72,7 +76,8 @@ int insert_list (struct nlist **p, struct nlist *n, struct nlist *inserting) {
 	return 0;
 }
 
-int delete_item (struct nlist **h, struct nlist *delItem) {
+int delete_item (struct nlist **h, struct nlist *delItem)
+{
 	struct nlist *p = NULL;
 	if (NULL == h || NULL == *h || NULL == delItem) {
 		return -EINVAL;
@@ -81,7 +86,7 @@ int delete_item (struct nlist **h, struct nlist *delItem) {
 		*h = (*h)->next;
 	}
 	p = (*h)->next;
-	while (p != delItem) {
+	while (p && p != delItem) {
 		p = p->next;
 	}
 	if (p == delItem){
@@ -93,7 +98,7 @@ int delete_item (struct nlist **h, struct nlist *delItem) {
 	return -EEXIST;
 }
 
-int delete_listAll (struct nlist **h)
+int delete_listAll ( struct nlist **h, void(*freeFunc)(void *) )
 {
 	struct nlist *t = NULL, *d = NULL;
 
@@ -104,7 +109,8 @@ int delete_listAll (struct nlist **h)
 	while (t != NULL) {
 		d = t;
 		t = t->next;
-		free (d);
+		if (freeFunc) 
+			freeFunc((void*)d);
 	}
 	*h = NULL;
 	return 0;

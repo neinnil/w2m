@@ -17,8 +17,8 @@
 **/
 
 #include <pthread.h>
-#include "nlist.h"
-#include "nqueue.h"
+#include "nein/list.h"
+#include "nein/queue.h"
 
 struct nqueue_it {
 	struct nlist list;
@@ -27,8 +27,8 @@ struct nqueue_it {
 
 struct nqueue {
 	pthread_mutex_t	*mu;
-	size_t		count;
-	struct nlist *head, *tail, *curr;
+	size_t			count;
+	struct nlist	*head, *tail, *curr;
 };
 
 typedef struct nqueue * nqhnd_t;
