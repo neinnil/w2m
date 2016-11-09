@@ -16,6 +16,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 #include "nein/list.h"
 
@@ -84,158 +85,60 @@ void search_test (struct mlist **head, int search_key)
 	}
 }
 
+struct mlist * allocItem(int ival)
+{
+	struct mlist *p = NULL;
+	p = (struct mlist*)malloc(sizeof(struct mlist));
+	if (p) {
+		p->v = ival;
+	}
+	return p;
+}
+
+void destroyItem (struct mlist **head, struct mlist *it)
+{
+	if (!head || !*head){
+		assert (0);
+	}
+	if (it) {
+		printf("Remove: ");
+		print_item (it);
+		cl_op.remove ((nlist_t**)head, NULL, (nlist_t*)it);
+		free (it);
+	}
+}
+
+void destroyAllItems(struct mlist **head)
+{
+	struct nlist* item = NULL;
+	nlist_t*	save = NULL;
+	item = cl_op.next ((nlist_t**)head, NULL, &save);
+	while (item) {
+		destroyItem (head, (struct mlist*)item);
+		printf("Remains: \n");
+		print_list(*head);
+		save = NULL;
+		item = cl_op.next ((nlist_t**)head, NULL, &save);
+	}
+}
+
 
 int main (int ac, char** av)
 {
 	struct mlist *head = NULL;
-	struct mlist a ={ NULL, NULL, 1 };
-	struct mlist b ={ NULL, NULL, 2 };
-	struct mlist c ={ NULL, NULL, 3 };
-	struct mlist d ={ NULL, NULL, 4 };
-	struct mlist e ={ NULL, NULL, 5 };
-	struct mlist f ={ NULL, NULL, 6 };
-	struct mlist g ={ NULL, NULL, 7 };
-	struct mlist h ={ NULL, NULL, 8 };
-
-	cl_op.append((nlist_t**)&head, NULL, (nlist_t*)&a);
-	printf ("Address of head: %p\n", head);
+	struct mlist *it = NULL;
+	/* add items 0 ~ 3 */
+	
+	for ( ac = 0; ac < 4 ; ac++ ) {
+		it = allocItem (ac);
+		cl_op.append((nlist_t**)&head, NULL, (nlist_t*)it);
+	}
 	print_list (head);
 
-	printf ("Add 2, expected: 1 2\n");
-	cl_op.append((nlist_t**)&head, NULL, (nlist_t*)&b);
+	printf ("To Try Destroy All Items.\n");
+	destroyAllItems(&head);
+	printf ("Done... \n");
 	print_list (head);
-
-	printf("Swap 1, 2, expected: 2 1\n");
-	cl_op.swap ((nlist_t**)&head, NULL,(nlist_t*)&a, (nlist_t*)&b);
-	print_list (head);
-
-	printf ("Swap 1, 2, expected: 1 2\n");
-	cl_op.swap ((nlist_t**)&head, NULL, (nlist_t*)&a, (nlist_t*)&b);
-	print_list (head);
-
-	printf ("Add 3, expected: 1 2 3\n");
-	cl_op.append((nlist_t**)&head, NULL, (nlist_t*)&c);
-	print_list(head);
-
-	printf("Swap 1, 2, expected: 2 1 3\n");
-	cl_op.swap ((nlist_t**)&head, NULL, (nlist_t*)&a, (nlist_t*)&b);
-	print_list (head);
-
-	printf("Swap 1, 2, expected: 1 2 3\n");
-	cl_op.swap ((nlist_t**)&head, NULL, (nlist_t*)&a, (nlist_t*)&b);
-	print_list (head);
-
-	printf("Del 2, expected: 1 3\n");
-	cl_op.remove ((nlist_t**)&head, NULL, (nlist_t*)&b);
-	print_list(head);
-
-	printf("Add 2, expected: 1 3 2\n");
-	cl_op.append ((nlist_t**)&head, NULL, (nlist_t*)&b);
-	print_list(head);
-
-	printf ("Del 1, expected: 3 2\n");
-	cl_op.remove ((nlist_t**)&head, NULL, (nlist_t*)&a);
-	print_list(head);
-
-	printf("Add 1, Swap 3, 1,  expected: 1 3 2\n");
-	cl_op.append((nlist_t**)&head, NULL, (nlist_t*)&a);
-	print_list(head);
-	cl_op.swap((nlist_t**)&head,NULL, (nlist_t*)&c, (nlist_t*)&a);
-	print_list(head);
-#if 0
-	add(&head, &d);
-	add(&head, &e);
-	add(&head, &f);
-	add(&head, &g);
-	add(&head, &h);
-	printf("Swap 3, 6, expected: 1 2 6 4 5 3 7 8\n");
-	swap (&head, &c, &f);
-	print_list (head);
-
-	printf("Swap 3, 6, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &c, &f);
-	print_list (head);
-
-	search_test(&head, 4);
-	search_test(&head, 9);
-
-	printf("Swap 1, 4, expected: 4 2 3 1 5 6 7 8\n");
-	swap (&head, &a, &d);
-	print_list (head);
-
-	printf("Swap 1, 4, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &a, &d);
-	print_list (head);
-
-	printf("Swap 1, 8, expected: 8 2 3 4 5 6 7 1\n");
-	swap (&head, &a, &h);
-	print_list (head);
-
-	printf("Swap 1, 8, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &a, &h);
-	print_list (head);
-
-	printf("Swap 2, 3, expected: 1 3 2 4 5 6 7 8\n");
-	swap (&head, &b, &c);
-	print_list (head);
-
-	printf("Swap 2, 3, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &b, &c);
-	print_list (head);
-
-	printf("Swap 1, 2, expected: 2 1 3 4 5 6 7 8\n");
-	swap (&head, &a, &b);
-	print_list (head);
-
-	printf("Swap 1, 2, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &a, &b);
-	print_list (head);
-
-	printf("Swap 7, 8, expected: 1 2 3 4 5 6 8 7\n");
-	swap (&head, &g, &h);
-	print_list (head);
-
-	printf("Swap 7, 8, expected: 1 2 3 4 5 6 7 8\n");
-	swap (&head, &g, &h);
-	print_list (head);
-	printf("---Test of next function. \n");
-	print_all_items(head);
-
-
-	printf ("Del 8, expected: 1 2 3 4 5 6 7\n");
-	del (&head, &h);
-	print_list (head);
-
-	printf ("Del 7, expected: 1 2 3 4 5 6 \n");
-	del (&head, &g);
-	print_list (head);
-	printf ("Del 6, expected: 1 2 3 4 5\n");
-	del (&head, &f);
-	print_list (head);
-
-	ac = exist(&head, &g);
-	printf ("Is there g? %s\n", ac==1?"Yes":(ac==0?"No":"Something wrong."));
-	ac = exist(&head, &e);
-	printf ("Is there e? %s\n", ac==1?"Yes":(ac==0?"No":"Something wrong."));
-
-	printf ("Del 5, expected: 1 2 3 4 \n");
-	del (&head, &e);
-	print_list (head);
-	printf ("Del 4, expected: 1 2 3\n");
-	del (&head, &d);
-	print_list (head);
-	printf ("Del 1, expected: 2 3\n");
-	del (&head, &a);
-	print_list (head);
-	printf ("Del 3, expected: 2\n");
-	del (&head, &c);
-	print_list (head);
-	printf("---Test of next function. \n");
-	print_all_items(head);
-	printf ("Del 2, expected: \n");
-	del (&head, &b);
-	print_list (head);
-#endif
 	return 0;
 }
 
