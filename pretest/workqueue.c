@@ -28,6 +28,7 @@
 
 struct workitem {
 	nlist_t	list;
+	pthread_mutex_t	*mu;
 	pthread_t		*tid;
 	int				state;
 	void			*priv;
@@ -47,6 +48,7 @@ struct workqueue {
 	int				nDone;
 
 	nlist_t_op	*op;
+	void (*free_private)(void *);
 };
 
 typedef struct workqueue workqueue_t;
@@ -127,6 +129,7 @@ int init_wq (workqueue_t **wq)
 	wq->nTotal = wq->nFree = wq->nDoing = wq->nDone = 0;
 	wq->whole = wq->free = wq->doing = wq->done = wq->curFree = NULL;
 	wq->op = &cl_op;
+	wq->free_private = NULL;
 	return 0;
 }
 
@@ -194,10 +197,19 @@ int addItem2Done(workqueue_t *wq, workitem_t *it)
 
 workitem_t *getNextFreeWork (workqueue_t *wq)
 {
-	workitem_t *wit;
+	int			rc = 0;
+	workitem_t *wit = NULL;
 	if (!wq) return -1;
-	pthread_mutex_lock(wq->mu);
-	wit = _next (wq, &wq->free, &wq->curFree);
+	rc = pthread_mutex_lock(wq->mu);
+	do {
+		wit = _next (wq, &wq->free, &wq->curFree);
+		if (wit == NULL) break;
+		rc = pthread_mutex_trylock (wit->mu);
+		if (rc == EINVAL){
+			rc = 0;
+			wit = NULL;
+		}
+	} while (rc != 0);
 	pthread_mutex_unlock(wq->mu);
 	return wit;
 }
@@ -214,7 +226,14 @@ int getNumbState (workqueue_t *wq, int *nTotal, int *nFree, int *nDoing, int *nD
 	return 0;
 }
 
-int initWorkItem (void *priv, int nSize)
+int setFreeFn(workqueue_t *wq, void (*freefn)(void*))
+{
+	if (!wq || !freefn) return -EINVAL;
+	wq->free_private = freefn;
+	return 0;
+}
+
+workitem_t * allocWorkItem (void *priv, int nSize)
 {
 	workitem_t *work = NULL;
 
@@ -224,9 +243,18 @@ int initWorkItem (void *priv, int nSize)
 
 	work = (workitem_t*)malloc (sizeof(workitem_t));
 	if (!work) {
-		return -1;
+		return NULL;
 	}
 	memset (work, 0x00, sizeof(workitem_t));
+	work->mu = (pthead_mutex_t*)malloc(sizeof(pthread_mutexx_t));
+	if (!work->mu) {
+		goto Error;
+	}
+	if (0!=pthread_mutex_init (work->mu, NULL)) {
+		free (work->mu);
+		work->mu = NULL;
+		goto Error;
+	}
 	if (nSize && priv) {
 		work->priv = (void*)malloc(nSize);
 		if (!work->priv) {
@@ -234,14 +262,26 @@ int initWorkItem (void *priv, int nSize)
 		}
 		memcpy (work->priv, priv, nSize);
 	}
-	return 0;
+	return work;
 Error:
-	if (work->priv) free(work->priv);
+	if (work->priv) {
+		free(work->priv);
+	}
 	if (work->mu) {
 		pthread_mutex_destroy (work->mu);
 		free (work->mu);
 	}
 	free(work);
-	return -1;
+	return NULL;
+}
+
+int destroyWorkItem (workqueue_t *wq, workitem_t *wit)
+{
+	if (!wq || !wit) return -EINVAL;
+	if (wq->free_private) {
+		wq->free_private (wit->priv);
+	} else {
+		free (wit->priv);
+	return 0;
 }
 
