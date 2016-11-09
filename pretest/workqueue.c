@@ -36,7 +36,6 @@ struct workitem {
 };
 
 struct workqueue {
-	nlist_t	*whole;
 	nlist_t	*free;
 	nlist_t	*doing;
 	nlist_t	*done;
@@ -158,14 +157,14 @@ Error:
 	return NULL;
 }
 
-int destroyWorkItem (workqueue_t *wq, workitem_t *wit)
+int destroyWorkItem (workqueue_t *wq, nlist_t** head, workitem_t *wit)
 {
 	int rc = 0;
 	if (!wq || !wit) return -EINVAL;
 
 	rc = pthread_mutex_lock (wit->mu);
 
-	_rmItem (wq, (nlist_t**)&wq->whole, (nlist_t*)wit);
+	_rmItem (wq, head, (nlist_t*)wit);
 
 	if (wq->free_private) {
 		wq->free_private (wit->priv);
@@ -197,33 +196,47 @@ int init_wq (workqueue_t **wq)
 		return -rc;
 	}
 	(*wq)->nTotal = (*wq)->nFree = (*wq)->nDoing = (*wq)->nDone = 0;
-	(*wq)->whole = (*wq)->free = (*wq)->doing = (*wq)->done = (*wq)->curFree = NULL;
+	(*wq)->free = (*wq)->doing = (*wq)->done = (*wq)->curFree = NULL;
 	(*wq)->op = &cl_op;
 	(*wq)->free_private = NULL;
 	return 0;
 }
 
-int destroy_wq (workqueue_t *wq)
+static void _destroy_list(workqueue_t *wq, nlist_t **head)
 {
 	int rc = 0;
 	workitem_t	*wit = NULL;
-	nlist_t		*curr = NULL;
-	if (!wq) return -EINVAL;
-	pthread_mutex_lock(wq->mu);
+	nlist_t		*saved = NULL;
 
-	wq->free = wq->doing = wq->done = wq->curFree = NULL;
+	if (!wq || !head || !*head) return ;
 
-	wit = (workitem_t*)_next (wq, &wq->whole, &curr);
+	wit = (workitem_t*)_next (wq, head, &saved);
 	while (wit) {
-		destroyWorkItem (wq, wit);
-		curr = NULL;
-		wit = (workitem_t*)_next (wq, &wq->whole, &curr);
+		destroyWorkItem (wq, head, wit);
+		saved = NULL;
+		wit = (workitem_t*)_next (wq, head, &saved);
 	}
+}
 
-	pthread_mutex_unlock(wq->mu);
-	rc = pthread_mutex_destroy(wq->mu);
+int destroy_wq (workqueue_t **wq)
+{
+	int rc = 0;
+	workitem_t	*wit = NULL;
+	int			i;
+	if (!wq || !*wq) return -EINVAL;
+	pthread_mutex_lock((*wq)->mu);
 
-	free (wq);
+	_destroy_list ( (*wq), &(*wq)->free);
+	_destroy_list ( (*wq), &(*wq)->doing);
+	_destroy_list ( (*wq), &(*wq)->free);
+
+	(*wq)->free = (*wq)->doing = (*wq)->done = (*wq)->curFree = NULL;
+
+	pthread_mutex_unlock((*wq)->mu);
+	rc = pthread_mutex_destroy((*wq)->mu);
+
+	free ((*wq));
+	*wq = NULL;
 	return 0;
 }
 
@@ -231,11 +244,6 @@ int addNewItem(workqueue_t *wq, workitem_t *it)
 {
 	int rc = 0;
 	pthread_mutex_lock(wq->mu);
-	rc = _add2list (wq, &wq->whole, (nlist_t*)it);
-	if (rc < 0) {
-		pthread_mutex_unlock(wq->mu);
-		return rc;
-	}
 	rc = _add2list (wq, &wq->free, (nlist_t*)it);
 	if (rc==0) {
 		wq->nTotal++;
@@ -328,6 +336,14 @@ int setFreeFn(workqueue_t *wq, void (*freefn)(void*))
 	return 0;
 }
 
+void print_statics(workqueue_t *wq)
+{
+	int nTotal, nFree, nDoing, nDone ;
+	if(0==getNumbState (wq, &nTotal, &nFree, &nDoing, &nDone)){
+		printf ("Total: %d, Free: %d, Doing: %d, Done: %d\n", 
+				nTotal, nFree, nDoing, nDone);
+	}
+}
 
 int main (int ac, char** av)
 {
@@ -339,7 +355,26 @@ int main (int ac, char** av)
 	printf ("init_wq returns %d:%s\n", rc, rc==0?"":strerror(-rc));
 	assert(0==rc);
 
-	rc = destroy_wq(wq);
+	for (ac = 0; ac < 5 ; ac++){
+		rc = 0;
+		wit = allocWorkItem ((void*)&ac, sizeof(int));
+		if (wit){
+			rc = addNewItem (wq, wit);
+		}
+		if (!wit || rc) {
+			printf ("Fail: %s\n", !wit?"allocation":"addition");
+			break;
+		}
+		print_statics(wq);
+	}
+
+	wit = getNextFreeWork(wq);
+	addItem2Doing (wq, wit);
+	print_statics(wq);
+	addItem2Done (wq, wit);
+	print_statics(wq);
+
+	rc = destroy_wq(&wq);
 
 	return 0;
 }
