@@ -28,7 +28,6 @@
 
 struct workitem {
 	nlist_t	list;
-	pthread_mutex_t *mu;
 	pthread_t		*tid;
 	int				state;
 	void			*priv;
@@ -92,9 +91,8 @@ static int  _exist(workqueue_t* wq, nlist_t **head, nlist_t *item)
 static void _swap (workqueue_t* wq, nlist_t **head, nlist_t *x, nlist_t *y)
 {
 	if (wq->op && wq->op->swap) {
-		return wp->op->swap (head, NULL, x, y);
+		wp->op->swap (head, NULL, x, y);
 	}
-	return ;
 }
 
 static nlist_t *_next (workqueue_t *wq, nlist_t **head, nlist_t **cur)
@@ -229,11 +227,6 @@ int initWorkItem (void *priv, int nSize)
 		return -1;
 	}
 	memset (work, 0x00, sizeof(workitem_t));
-	work->mu = (pthread_mutex_t*)malloc(sizeof(pthread_mutex_t));
-	if ( !work->mu ) {
-		goto Error;
-	}
-	pthread_mutex_init (work->mu);
 	if (nSize && priv) {
 		work->priv = (void*)malloc(nSize);
 		if (!work->priv) {
@@ -241,6 +234,7 @@ int initWorkItem (void *priv, int nSize)
 		}
 		memcpy (work->priv, priv, nSize);
 	}
+	return 0;
 Error:
 	if (work->priv) free(work->priv);
 	if (work->mu) {
