@@ -33,14 +33,14 @@ typedef struct sighandle_set sighandle_set;
 
 extern int setSigHandler(sighandle_set *);
 
-extern int walkThDir(const char *dpath, void(*doing)(const char *fpath));
+extern int walkThDir(char *dpath, void(*doing)(const char *fpath));
 
 /* releated to thread */
 struct _nil_task {
 	struct nlist ln;
 	pthread_t tid;
 	pthread_attr_t *attr;
-#ifdef __USE_XOPEN2K
+#if defined (__USE_XOPEN2K) || defined (__MINGW32__)
 	pthread_barrier_t *barrier; /* refer to barrier pointer */
 #endif
 	int		sched_priority;
@@ -68,13 +68,17 @@ struct _nil_task_manager {
 typedef struct _nil_task_manager nil_task_mgm_t;
 
 extern int initTaskManager (nil_task_mgm_t **tmgm);
+extern int addTask2TaskMgm (nil_task_mgm_t *tmgm, nil_task_t *task);
 extern nil_task_t *getNext (nil_task_mgm_t *tmgm);
 extern void destroy_TaskManager (nil_task_mgm_t **tmgm);
 
 extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 extern int getNumOfCores(int *core);
 extern int createTask(nil_task_t *taskarg);
-extern int waitAllTasks(nil_task_t **alltask);
+extern int waitAllTasks(nil_task_mgm_t *alltask);
+
+extern int initTask(nil_task_t **task);
+extern int destroyTask(nil_task_t *task);
 
 
 #ifdef __cplusplus

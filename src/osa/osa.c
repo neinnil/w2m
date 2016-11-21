@@ -23,6 +23,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
+#include <signal.h>
 #include <errno.h>
 #include "nein/osa.h"
 
@@ -34,7 +35,7 @@ static int creatTask(nil_task_t *taskarg);
 int setSigHandler(sighandle_set *sigset)
 {
 	int	rc = 0;
-#if defined(__LINUX__)
+#if defined(__LINUX__) || defined (__APPLE__)
 	struct sigaction sa;
 	sa.sa_handler = (void (*)(int))(sigset->hndl);
 	sigemptyset (&sa.sa_mask);
@@ -49,7 +50,7 @@ int setSigHandler(sighandle_set *sigset)
 	return rc;
 }
 
-#if defined (__LINUX__)
+#if defined (__LINUX__) || defined (__APPLE__)
 static int fts_comp(const FTSENT **l, const FTSENT **r)
 {
 	FTSENT *lp, *rp;
@@ -107,16 +108,16 @@ static int _delTask (nil_task_mgm_t *mg, nil_task_t *task)
 	return -EINVAL;
 }
 
-int walkThDir(const char *dpath, void(*doing)(const char *fpath))
+int walkThDir(char* dpath, void(*doing)(const char *fpath))
 {
 	int rc = 0;
-#if defined (__LINUX__)
+#if defined (__LINUX__) || defined (__APPLE__)
 	FTS *pfts = NULL;
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
 	int fts_option = FTS_NOCHDIR ; //FTS_LOGICAL|FTS_NOCHDIR; 
 
-	if (!(pfts = fts_open (dpath, fts_option, fts_comp)) ){
+	if (!(pfts = fts_open (&dpath, fts_option, fts_comp)) ){
 		printf("fts_open error. \n");
 		return 2;
 	}
@@ -230,7 +231,7 @@ int creatTask(nil_task_t *taskarg)
 	int ret = 0;
 	pthread_t tid = (pthread_t)0;
 	pthread_attr_t	*attr = NULL;
-#ifndef __APPLE__
+#if defined(__USE_XOPEN2K) || defined (__MINGW32__)
 	pthread_barrier_t *barrier = NULL;
 #endif
 	if (NULL == taskarg){
@@ -245,6 +246,10 @@ int creatTask(nil_task_t *taskarg)
 				attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
 				if (NULL != attr) {
 					if(0==pthread_attr_init(attr)) {
+						struct sched_param schedparam = {0,};
+						schedparam.sched_priority  = taskarg->sched_priority;
+						ret = pthread_attr_setschedpolicy(attr, taskarg->sched_policy);
+						ret |= pthread_attr_setschedparam(attr, &schedparam);
 					}
 				}
 			}
@@ -252,7 +257,7 @@ int creatTask(nil_task_t *taskarg)
 	}
 #if defined(__LINUX__)
 	if ( -1 != taskarg->onCore ) {
-		assign2coreInMain( RUN_ON_LINUX, taskarg->onCore, &attr);
+		(void)assign2coreInMain( RUN_ON_LINUX, taskarg->onCore, &attr);
 	}
 #endif
 
@@ -264,16 +269,20 @@ int creatTask(nil_task_t *taskarg)
 
 void *_task_work(void *arg)
 {
+#if defined (__USE_XOPEN2K) || defined (__MINGW32__)
+	pthread_barrier_t *barrier = NULL;
+#endif
 	nil_task_t *taskarg = NULL;
 	if (!arg) {
 		fprintf(stderr,"%s[%d] null argument.\n",__FUNCTION__,__LINE__);
 		return (void*)0;
 	}
 	taskarg = (nil_task_t*)arg;
-#if defined(__MINGW32__)
-	(void)assign2core(RUN_ON_WIN_MINGW, taskarg->onCore);
+#if defined (__MINGW32__)
+	if (taskarg->onCore > -1)
+		(void)assign2core(RUN_ON_WIN_MINGW, taskarg->onCore);
 #endif
-#if defined(__USE_XOPEN2K) || defined(__MINGW32__)
+#if defined (__USE_XOPEN2K) || defined (__MINGW32__)
 	if (taskarg->barrier)
 		barrier = taskarg->barrier;
 	if (barrier) 
@@ -332,9 +341,15 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 	return rc;
 }
 
-int waitAllTasks(nil_task_t **alltask)
+int waitAllTasks(nil_task_mgm_t *mgm)
 {
 	nil_task_t *task = NULL;
+	if (!mgm) return -EINVAL;
+	task = mgm->nextTask(mgm);
+	while (task) {
+		pthread_join(task->tid, NULL);
+		task = mgm->nextTask(mgm);
+	}
 	return 0;
 }
 
@@ -354,6 +369,14 @@ int initTaskManager (nil_task_mgm_t **tmgm)
 	return -EINVAL;
 }
 
+int addTask2TaskMgm (nil_task_mgm_t *tmgm, nil_task_t *task)
+{
+	if (tmgm && task && tmgm->addTask) {
+		return tmgm->addTask (tmgm, task);
+	}
+	return -EINVAL;
+}
+
 nil_task_t *getNext (nil_task_mgm_t *tmgm)
 {
 	if (tmgm) {
@@ -369,9 +392,34 @@ void destroy_TaskManager (nil_task_mgm_t **tmgm)
 		task = (*tmgm)->nextTask (*tmgm);
 		while (task) {
 			(*tmgm)->delTask (*tmgm, task);
+			(void)destroyTask(task);
 			task = (*tmgm)->nextTask (*tmgm);
 		}
 		free (*tmgm);
 		*tmgm = NULL;
 	}
 }
+
+int initTask (nil_task_t **task)
+{
+	if (task) {
+		nil_task_t *task = NULL;
+		task = (nil_task_t*)malloc(sizeof(nil_task_t));
+		if (!task) return -ENOMEM;
+		memset(task, 0x00, sizeof(nil_task_t));
+		task->sched_priority = task->sched_policy = -1;
+		task->onCore = -1;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int destroyTask (nil_task_t *task)
+{
+	if (task){
+		free (task);
+		return 0;
+	}
+	return -EINVAL;
+}
+
