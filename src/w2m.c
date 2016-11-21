@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <string.h> /* for strerror */
 #include <errno.h>
+#include <pthread.h>
 
 #define NIL_DEBUG(fmt, ...) do {
 	fprintf(stderr, fmt##__VA_ARGS__);
@@ -84,6 +85,8 @@ int main (int ac, char **av)
 		showUsage(*av);
 		return 1;
 	}
+
+	set_signal();
 
 	/* check whether  argument is a directory or not? */
 	if (0 != isDirectory((const char*)*(av+1), &pdir)){
