@@ -20,7 +20,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
-#include "nein_osa.h"
+#include "nein/osa.h"
 
 stataic int sysCore = 0;
 
@@ -76,6 +76,32 @@ int _ftw_fn (const char* path, const struct stat *st, int itype, struct FTW *sft
 	}
 }
 #endif
+
+static int _addTask (nil_task_mgm_t *mg, nil_task_t *task)
+{
+	int rc = 0;
+	if (mg && task && mg->listOp){
+		return mg->listOp->append(&mg->head, NULL, (nlist_t*)task);
+	}
+	return -EINVAL;
+}
+
+static nil_task_t* _nextTask (nil_task_mgm_t *mg, nil_task_t *task)
+{
+	if (mg && task && mg->listOp){
+		return (nil_task_t*)(mg->listOp->next(&mg->head, NULL, &mg->saved);
+	}
+	return NULL;
+}
+
+static int _delTask (nil_task_mgm_t *mg, nil_task_t *task)
+{
+	int rc = 0;
+	if (mg && task && mg->listOp){
+		return mg->listOp->remove(&mg->head, NULL, (nlist_t*)task);
+	}
+	return -EINVAL;
+}
 
 int walkThDir(const char *dpath, void(*doing)(const char *fpath))
 {
@@ -301,4 +327,42 @@ int waitAllTasks(nil_task_t **alltask)
 {
 	nil_task_t *task = NULL;
 	return 0;
+}
+
+int initTaskManager (nil_task_mgm_t **tmgm)
+{
+	if (tmgm) {
+		nil_task_mgm_t *p = (niil_task_mgm_t*)malloc(sizeof(nil_task_mgm_t));
+		if (!p) return -ENOMEM;
+		memset (p, 0x00, sizeof(nil_task_mgm_t));
+		p->listOp = &cl_op;
+		p->addTask = _addTask;
+		p->nextTask = _nextTask;
+		p->delTask = _delTask;
+		*tmgm = p;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+nil_task_t *getNext (nil_task_mgm_t *tmgm)
+{
+	if (tmgm) {
+		return tmgm->nextTask(tmgm);
+	}
+	return NULL;
+}
+
+void destroy_TaskManager (nil_task_mgm_t **tmgm)
+{
+	if (tmgm && *tmgm){
+		nil_task_t *task = NULL;
+		task = tmgm->nextTask (*tmgm);
+		while (task) {
+			tmgm->delTask (*tmgm, task);
+			task = tmgm->nextTask (*tmgm);
+		}
+		free (*tmgm);
+		*tmgm = NULL;
+	}
 }

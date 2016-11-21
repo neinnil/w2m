@@ -2,40 +2,45 @@
 
 TOP_DIR ?= $(PWD)/..
 INCDIR=$(TOP_DIR)/include
-CFLAGS = -I$(INCDIR)
-LDFLAGS = -lpthread
+CFLAGS += -I$(INCDIR)
+CFLAGS += -I$(TOP_DIR)/src
+LDFLAGS += -lpthread
+CC=gcc
 
 SRCS  = $(TOP_DIR)/src/wave/wave.c
-SRCS += $(TOP_DIR)/src/utils/winfo.c
-SRCS += $(TOP_DIR)/src/osa/clinkedlist.c
+SRCS += $(TOP_DIR)/pretest/winfo.c
+SRCS += $(TOP_DIR)/src/utils/clinkedlist.c
 SRCS += $(TOP_DIR)/pretest/cltest.c
 
-UTILS = winfo cltest workqueue
+UTILS = winfo cltest wqtest
 
 all: $(UTILS)
 
 winfo: winfo.o wave.o
-	gcc -o winfo winfo.o wave.o
+	$(CC) -o $@ $^ $(LDFLAGS)
 
 wave.o: $(TOP_DIR)/src/wave/wave.c
-	gcc -c $(TOP_DIR)/src/wave/wave.c $(CFLAGS)
+	$(CC) -c $< $(CFLAGS)
 
-winfo.o: $(TOP_DIR)/src/utils/winfo.c
-	gcc -c $(TOP_DIR)/src/utils/winfo.c $(CFLAGS)
+winfo.o: $(TOP_DIR)/pretest/winfo.c
+	$(CC) -c $< $(CFLAGS)
 
 cltest: clinkedlist.o cltest.o
-	gcc  -o cltest cltest.o clinkedlist.o
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-clinkedlist.o: $(TOP_DIR)/src/osa/clinkedlist.c
-	gcc -c $(TOP_DIR)/src/osa/clinkedlist.c $(CFLAGS)
+clinkedlist.o: $(TOP_DIR)/src/utils/clinkedlist.c
+	$(CC) -c $< $(CFLAGS)
 
 cltest.o: $(TOP_DIR)/pretest/cltest.c
-	gcc -c $< $(CFLAGS)
+	$(CC) -c $< $(CFLAGS)
 
-workqueue: clinkedlist.o workqueue.o
-	gcc  -o $@ $^ $(LDFLAGS)
+wqtest: clinkedlist.o workqueue.o wqtest.o
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-workqueue.o: $(TOP_DIR)/pretest/workqueue.c
-	gcc -c $< $(CFLAGS)
+workqueue.o: $(TOP_DIR)/src/workqueue.c
+	$(CC) -c $< $(CFLAGS)
+
+wqtest.o: $(TOP_DIR)/pretest/wqtest.c
+	$(CC) -c $< $(CFLAGS)
 clean:
 	rm -f $(UTILS) *.o

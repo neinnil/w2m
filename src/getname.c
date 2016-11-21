@@ -21,6 +21,8 @@
 #include <libgen.h>
 #include "getname.h"
 
+#define SEPARATOR "/"
+
 static char *tmp_name = "TEST FILE";
 static char *dfl_ext = "mp3";
 

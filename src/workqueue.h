@@ -41,6 +41,8 @@ struct workqueue {
 	nlist_t	*doing;
 	nlist_t	*done;
 	nlist_t *curFree;
+	nlist_t *curDoing;
+	nlist_t *curDone;
 	pthread_mutex_t	*mu;
 
 	int				nTotal;
@@ -57,6 +59,9 @@ typedef struct workitem	 workitem_t;
 
 extern workitem_t*	allocWorkItem (void *priv, int nSize);
 extern int destroyWorkItem (workqueue_t *wq, nlist_t** head, workitem_t *wit);
+extern int unlock_workItem (workitem_t *wit);
+extern int lock_workItem(workitem_t *wit);
+extern int trylock_workItem(workitem_t *wit);
 
 extern int init_wq (workqueue_t **wq);
 extern int destroy_wq (workqueue_t **wq);
@@ -65,6 +70,9 @@ extern int addNewItem(workqueue_t *wq, workitem_t *it);
 extern int addItem2Doing(workqueue_t *wq, workitem_t *it);
 extern int addItem2Done(workqueue_t *wq, workitem_t *it);
 extern workitem_t*	getNextFreeWork (workqueue_t *wq);
+extern workitem_t*	getNextDoingWork (workqueue_t *wq);
+extern workitem_t*	getNextDoneWork (workqueue_t *wq);
+extern workitem_t*	popWorkFromFree (workqueue_t *wq);
 extern int getNumbState (workqueue_t *wq, int *nTotal, int *nFree, int *nDoing, int *nDone);
 
 extern int setFreeFn(workqueue_t *wq, void (*freefn)(void*));

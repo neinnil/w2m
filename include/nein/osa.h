@@ -18,7 +18,7 @@
 #ifndef _NEIN_OSA_H
 #define _NEIN_OSA_H
 
-#include "list.h"
+#include "nein/list.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,7 +41,7 @@ struct _nil_task {
 	pthread_t tid;
 	pthread_attr_t *attr;
 #ifdef __USE_XOPEN2K
-	pthread_barrier_t *barrier;
+	pthread_barrier_t *barrier; /* refer to barrier pointer */
 #endif
 	int		sched_priority;
 	int		sched_policy;
@@ -50,11 +50,26 @@ struct _nil_task {
 	void*	(*work_run)(void *);
 };
 
-#define RUN_ON_LINUX 1
-#define RUN_ON_WIN_MINGW 2
-#define RUN_ON_OTHERS 4
+#define RUN_ON_LINUX		1
+#define RUN_ON_WIN_MINGW	2
+#define RUN_ON_OTHERS		4
 
 typedef struct _nil_task  nil_task_t;
+
+struct _nil_task_manager {
+	nlist_t *head;
+	nlist_t *saved;
+	struct nlist_op *listOp;
+	int (*addTask)(struct _nil_task_manager *mg, nil_task_t *task);
+	nil_task_t* (*nextTask)(struct _nil_task_manager *mg);
+	int (*delTask)(struct _nil_task_manager *mg, nil_task_t *task);
+};
+
+typedef struct _nil_task_manager nil_task_mgm_t;
+
+extern int initTaskManager (nil_task_mgm_t **tmgm);
+extern nil_task_t *getNext (nil_task_mgm_t *tmgm);
+extern void destroy_TaskManager (nil_task_mgm_t **tmgm);
 
 extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 extern int getNumOfCores(int *core);

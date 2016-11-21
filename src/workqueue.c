@@ -131,10 +131,31 @@ Error:
 	return NULL;
 }
 
+int trylock_workItem(workitem_t *wit)
+{
+	if (!wit) return -EINVAL;
+	if (!wit->mu) return -EINVAL;
+	return pthread_mutex_trylock(wit->mu);
+}
+
+int lock_workItem(workitem_t *wit)
+{
+	if (!wit) return -EINVAL;
+	if (!wit->mu) return -EINVAL;
+	return pthread_mutex_lock(wit->mu);
+}
+
+int unlock_workItem(workitem_t *wit)
+{
+	if (!wit) return -EINVAL;
+	if (!wit->mu) return -EINVAL;
+	return pthread_mutex_unlock(wit->mu);
+}
+
 int destroyWorkItem (workqueue_t *wq, nlist_t** head, workitem_t *wit)
 {
 	int rc = 0;
-	if (!wq || !wit) return -EINVAL;
+	if (!wq || !wit || !head || !*head) return -EINVAL;
 
 	rc = pthread_mutex_lock (wit->mu);
 
@@ -170,7 +191,8 @@ int init_wq (workqueue_t **wq)
 		return -rc;
 	}
 	(*wq)->nTotal = (*wq)->nFree = (*wq)->nDoing = (*wq)->nDone = 0;
-	(*wq)->free = (*wq)->doing = (*wq)->done = (*wq)->curFree = NULL;
+	(*wq)->free = (*wq)->doing = (*wq)->done = NULL;
+	(*wq)->curFree = (*wq)->curDoing = (*wq)->curDone = NULL;
 	(*wq)->op = &cl_op;
 	(*wq)->free_private = NULL;
 	return 0;
@@ -204,7 +226,8 @@ int destroy_wq (workqueue_t **wq)
 	_destroy_list ( (*wq), &(*wq)->doing);
 	_destroy_list ( (*wq), &(*wq)->free);
 
-	(*wq)->free = (*wq)->doing = (*wq)->done = (*wq)->curFree = NULL;
+	(*wq)->free = (*wq)->doing = (*wq)->done = NULL;
+	(*wq)->curFree = (*wq)->curDoing = (*wq)->curDone = NULL;
 
 	pthread_mutex_unlock((*wq)->mu);
 	rc = pthread_mutex_destroy((*wq)->mu);
@@ -231,48 +254,82 @@ int addItem2Doing(workqueue_t *wq, workitem_t *it)
 {
 	int rc = 0;
 	pthread_mutex_lock(wq->mu);
-	rc = _add2list (wq, &wq->doing, (nlist_t*)it);
+	rc = _rmItem (wq, &wq->free, (nlist_t*)it);
 	if (rc < 0) {
 		pthread_mutex_unlock(wq->mu);
 		return -1;
 	}
-	rc = _rmItem (wq, &wq->free, (nlist_t*)it);
+	rc = _add2list (wq, &wq->doing, (nlist_t*)it);
 	if (rc < 0) {
-		rc = _rmItem (wq, &wq->doing, (nlist_t*)it);
+		rc = _add2list (wq, &wq->free, (nlist_t*)it);
 		pthread_mutex_unlock(wq->mu);
 		return -1;
 	}
 	wq->nFree--;
 	wq->nDoing++;
+	wq->curFree = NULL;
+	wq->curDoing = NULL;
+	wq->curDone = NULL;
 
 	pthread_mutex_unlock(wq->mu);
 	return rc;
 }
 
-int addItem2Done(workqueue_t *wq, workitem_t *it)
+int addItem2Done(workqueue_t *wq, workitem_t *wit)
 {
 	int rc = 0;
 	pthread_mutex_lock(wq->mu);
-	rc = _add2list (wq, &wq->done, (nlist_t*)it);
+	rc = _rmItem (wq, &wq->doing, (nlist_t*)wit);
 	if (rc < 0) {
 		pthread_mutex_unlock(wq->mu);
 		return -1;
 	}
-	rc = _rmItem (wq, &wq->doing, (nlist_t*)it);
+	rc = _add2list (wq, &wq->done, (nlist_t*)wit);
 	if (rc < 0) {
-		rc = _rmItem (wq, &wq->done, (nlist_t*)it);
+		rc = _add2list (wq, &wq->doing, (nlist_t*)wit);
 		pthread_mutex_unlock(wq->mu);
 		return -1;
 	}
-	pthread_mutex_unlock (it->mu);
+	//pthread_mutex_unlock (wit->mu);
 	wq->nDoing--;
 	wq->nDone++;
+
+	wq->curFree = NULL;
+	wq->curDoing = NULL;
+	wq->curDone = NULL;
 
 	pthread_mutex_unlock(wq->mu);
 	return rc;
 }
 
+static workitem_t *_getNextWorkItem (workqueue_t *wq, nlist_t** head, nlist_t** saved)
+{
+	int			rc = 0;
+	workitem_t *wit = NULL;
+	if (!wq || !head || !*head) return NULL;
+	rc = pthread_mutex_lock(wq->mu);
+	wit = (workitem_t*)_next (wq, head, saved);
+	rc = pthread_mutex_unlock(wq->mu);
+	return wit;
+}
+
 workitem_t *getNextFreeWork (workqueue_t *wq)
+{
+	return _getNextWorkItem (wq, &wq->free, &wq->curFree);
+
+}
+
+workitem_t *getNextDoingWork (workqueue_t *wq)
+{
+	return _getNextWorkItem (wq, &wq->doing, &wq->curDoing);
+}
+
+workitem_t *getNextDoneWork (workqueue_t *wq)
+{
+	return _getNextWorkItem (wq, &wq->done, &wq->curDone);
+}
+
+workitem_t *popWorkFromFree (workqueue_t *wq)
 {
 	int			rc = 0;
 	workitem_t *wit = NULL;
@@ -310,45 +367,3 @@ int setFreeFn(workqueue_t *wq, void (*freefn)(void*))
 	return 0;
 }
 
-void print_statics(workqueue_t *wq)
-{
-	int nTotal, nFree, nDoing, nDone ;
-	if(0==getNumbState (wq, &nTotal, &nFree, &nDoing, &nDone)){
-		printf ("Total: %d, Free: %d, Doing: %d, Done: %d\n", 
-				nTotal, nFree, nDoing, nDone);
-	}
-}
-
-int main (int ac, char** av)
-{
-	int rc = 0;
-	workqueue_t	*wq = NULL;
-	workitem_t	*wit = NULL;
-
-	rc = init_wq(&wq);
-	printf ("init_wq returns %d:%s\n", rc, rc==0?"":strerror(-rc));
-	assert(0==rc);
-
-	for (ac = 0; ac < 5 ; ac++){
-		rc = 0;
-		wit = allocWorkItem ((void*)&ac, sizeof(int));
-		if (wit){
-			rc = addNewItem (wq, wit);
-		}
-		if (!wit || rc) {
-			printf ("Fail: %s\n", !wit?"allocation":"addition");
-			break;
-		}
-		print_statics(wq);
-	}
-
-	wit = getNextFreeWork(wq);
-	addItem2Doing (wq, wit);
-	print_statics(wq);
-	addItem2Done (wq, wit);
-	print_statics(wq);
-
-	rc = destroy_wq(&wq);
-
-	return 0;
-}
