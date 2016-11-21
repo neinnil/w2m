@@ -17,12 +17,16 @@
 */
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
+#include <errno.h>
 #include "nein/osa.h"
 
-stataic int sysCore = 0;
+static int sysCore = 0;
 
 static void *_task_work(void *taskarg);
 static int creatTask(nil_task_t *taskarg);
@@ -86,10 +90,10 @@ static int _addTask (nil_task_mgm_t *mg, nil_task_t *task)
 	return -EINVAL;
 }
 
-static nil_task_t* _nextTask (nil_task_mgm_t *mg, nil_task_t *task)
+static nil_task_t* _nextTask (nil_task_mgm_t *mg)
 {
-	if (mg && task && mg->listOp){
-		return (nil_task_t*)(mg->listOp->next(&mg->head, NULL, &mg->saved);
+	if (mg && mg->listOp){
+		return (nil_task_t*)(mg->listOp->next(&mg->head, NULL, &mg->saved));
 	}
 	return NULL;
 }
@@ -189,15 +193,19 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 #endif
 	return pattr;
 }
-
-int creatTaskOnCore(void *tid,void*(*run)(void *),void* arg,int onCore)
+/* deprecated. */
+int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int onCore)
 {
 	int ret = 0;
 	pthread_t thid;
 	pthread_attr_t *attr = NULL;
+	if (!tid) return -EINVAL;
 
 	attr = setCore(NULL, onCore);
 	ret = pthread_create(&thid,attr,run, arg);
+	if (ret == 0){
+		*tid = thid;
+	}
 
 	return ret;
 }
@@ -222,8 +230,9 @@ int creatTask(nil_task_t *taskarg)
 	int ret = 0;
 	pthread_t tid = (pthread_t)0;
 	pthread_attr_t	*attr = NULL;
+#ifndef __APPLE__
 	pthread_barrier_t *barrier = NULL;
-
+#endif
 	if (NULL == taskarg){
 		return -EINVAL;
 	}
@@ -280,7 +289,7 @@ int assign2core(int run_on, int numCore)
 #if defined (__LINUX__)
 	if (RUN_ON_LINUX != run_on) return -1;
 
-#else if defined(__MINGW32__)
+#elif defined(__MINGW32__)
 	if (RUN_ON_WIN_MINGW != run_on) return -1;
 	rc = pthread_set_num_processors_np(numCore);
 #endif
@@ -318,7 +327,7 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 	}
 	rc = pthread_set_num_processors_np(numCore);
 #else
-	#warning "Not supported"
+	#warning "Not supported: assigning core"
 #endif
 	return rc;
 }
@@ -332,7 +341,7 @@ int waitAllTasks(nil_task_t **alltask)
 int initTaskManager (nil_task_mgm_t **tmgm)
 {
 	if (tmgm) {
-		nil_task_mgm_t *p = (niil_task_mgm_t*)malloc(sizeof(nil_task_mgm_t));
+		nil_task_mgm_t *p = (nil_task_mgm_t*)malloc(sizeof(nil_task_mgm_t));
 		if (!p) return -ENOMEM;
 		memset (p, 0x00, sizeof(nil_task_mgm_t));
 		p->listOp = &cl_op;
@@ -357,10 +366,10 @@ void destroy_TaskManager (nil_task_mgm_t **tmgm)
 {
 	if (tmgm && *tmgm){
 		nil_task_t *task = NULL;
-		task = tmgm->nextTask (*tmgm);
+		task = (*tmgm)->nextTask (*tmgm);
 		while (task) {
-			tmgm->delTask (*tmgm, task);
-			task = tmgm->nextTask (*tmgm);
+			(*tmgm)->delTask (*tmgm, task);
+			task = (*tmgm)->nextTask (*tmgm);
 		}
 		free (*tmgm);
 		*tmgm = NULL;
