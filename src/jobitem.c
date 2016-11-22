@@ -34,7 +34,7 @@ jobitem_t*	alloc_jobitem(char *src)
 		free (item);
 		return NULL;
 	}
-	if (0!(rc=pthread_mutex_init(item->lock, NULL))) {
+	if (0!=(rc=pthread_mutex_init(item->lock, NULL))) {
 		free (item->lock);
 		free (item);
 		return NULL;
