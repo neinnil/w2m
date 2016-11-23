@@ -22,7 +22,11 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#if defined (__LINUX__) || defined (__APPLE__)
 #include <fts.h>
+#elif defined (__MINGW32__)
+#include <ftw.h>
+#endif
 #include <signal.h>
 #include <errno.h>
 #include "nein/osa.h"
@@ -31,6 +35,8 @@ static int sysCore = 0;
 
 static void *_task_work(void *taskarg);
 static int creatTask(nil_task_t *taskarg);
+
+int assign2core(int run_on, int numCore) ;
 
 int setSigHandler(sighandle_set *sigset)
 {
@@ -45,7 +51,7 @@ int setSigHandler(sighandle_set *sigset)
 		rc = -errno;
 	}
 #elif defined (__MINGW32__)
-	rc = signal (sigset->signo, sigset->hndl);
+	signal (sigset->signo, sigset->hndl);
 #endif
 	return rc;
 }
@@ -193,22 +199,6 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 #else
 #endif
 	return pattr;
-}
-/* deprecated. */
-int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int onCore)
-{
-	int ret = 0;
-	pthread_t thid;
-	pthread_attr_t *attr = NULL;
-	if (!tid) return -EINVAL;
-
-	attr = setCore(NULL, onCore);
-	ret = pthread_create(&thid,attr,run, arg);
-	if (ret == 0){
-		*tid = thid;
-	}
-
-	return ret;
 }
 
 int getNumOfCores(int *core)
