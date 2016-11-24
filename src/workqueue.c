@@ -88,6 +88,14 @@ static nlist_t *_search (workqueue_t *wq, nlist_t **head, void *key, int (*comp)
 	return NULL;
 }
 
+static int _exist (workqueue_t *wq, nlist_t **head, nlist_t *it)
+{
+	if (wq->op && wq->op->exist) {
+		return wq->op->exist (head, it);
+	}
+	return -1;
+}
+
 
 workitem_t * allocWorkItem (void *priv, int nSize)
 {
@@ -195,6 +203,7 @@ int init_wq (workqueue_t **wq)
 	(*wq)->curFree = (*wq)->curDoing = (*wq)->curDone = NULL;
 	(*wq)->op = &cl_op;
 	(*wq)->free_private = NULL;
+	(*wq)->complete = NULL;
 	return 0;
 }
 
@@ -290,7 +299,6 @@ int addItem2Done(workqueue_t *wq, workitem_t *wit)
 		pthread_mutex_unlock(wq->mu);
 		return -1;
 	}
-	//pthread_mutex_unlock (wit->mu);
 	wq->nDoing--;
 	wq->nDone++;
 
@@ -298,7 +306,15 @@ int addItem2Done(workqueue_t *wq, workitem_t *wit)
 	wq->curDoing = NULL;
 	wq->curDone = NULL;
 
+	rc = pthread_mutex_trylock (wit->mu);
+	if (rc ==EBUSY) {
+		fprintf(stderr, "Already locked.\n");
+	}
+	pthread_mutex_unlock (wit->mu);
 	pthread_mutex_unlock(wq->mu);
+	if (wq->nTotal == wq->nDone && wq->complete) {
+		wq->complete();
+	}
 	return rc;
 }
 
@@ -336,6 +352,9 @@ workitem_t *popWorkFromFree (workqueue_t *wq)
 	if (!wq) return NULL;
 	rc = pthread_mutex_lock(wq->mu);
 	do {
+		if (1 != _exist (wq, &wq->free, wq->curFree)) {
+			wq->curFree = NULL;
+		}
 		wit = (workitem_t*)_next (wq, &wq->free, &wq->curFree);
 		if (wit == NULL) break;
 		rc = pthread_mutex_trylock (wit->mu);
@@ -367,3 +386,9 @@ int setFreeFn(workqueue_t *wq, void (*freefn)(void*))
 	return 0;
 }
 
+void setCompleteFn (workqueue_t *wq, void (*complete)(void))
+{
+	if (wq && complete) {
+		wq->complete = complete;
+	}
+}

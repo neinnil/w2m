@@ -77,6 +77,7 @@ extern workitem_t*	popWorkFromFree (workqueue_t *wq);
 extern int getNumbState (workqueue_t *wq, int *nTotal, int *nFree, int *nDoing, int *nDone);
 
 extern int setFreeFn(workqueue_t *wq, void (*freefn)(void*));
+extern void setCompleteFn (workqueue_t *wq, void (*complete)(void));
 
 #ifdef __cplusplus
 }
