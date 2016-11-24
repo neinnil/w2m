@@ -72,7 +72,6 @@ extern int addTask2TaskMgm (nil_task_mgm_t *tmgm, nil_task_t *task);
 extern nil_task_t *getNext (nil_task_mgm_t *tmgm);
 extern void destroy_TaskManager (nil_task_mgm_t **tmgm);
 
-extern int creatTaskOnCore(void **tid,void*(*run)(void *),void* arg,int core);
 extern int getNumOfCores(int *core);
 extern int createTask(nil_task_t *taskarg);
 extern int waitAllTasks(nil_task_mgm_t *tmgm);
