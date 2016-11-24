@@ -17,6 +17,8 @@ struct _jobitem {
 	char			*src;
 	char			*dst;
 	int				isSupported; /* 0: not supported. 1: supported. */
+#define NOT_SUPPORTED_FILE 0
+#define SUPPORTED_FILE 1
 	void			*pcmInfo;
 	pthread_mutex_t	*lock;
 };

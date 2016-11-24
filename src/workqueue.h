@@ -52,6 +52,7 @@ struct workqueue {
 
 	struct nlist_op	*op;
 	void (*free_private)(void *);
+	void (*complete)(void);
 };
 
 typedef struct workqueue workqueue_t;

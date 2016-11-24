@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <pthread.h>
 
+#include "nein/osa.h"
+#include "workqueue.h"
+#include "jobitem.h"
+
 #define NIL_DEBUG(fmt, ...) do {
 	fprintf(stderr, fmt##__VA_ARGS__);
 }while(0)
@@ -26,10 +30,22 @@ struct wQ {
 	int		  state; /* 0: not owned, 1: owned, 2: done, 16: not supported */
 };
 
-extern void broadcastingCond(void);
 
 /** global variables */
 static int bQuit = 0;
+
+static nil_task_mgm_t	*taskmanager = NULL;
+static workqueue_t		*workQueue = NULL;
+static int	numOfCores = 0;
+
+pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t  gCond = PTHEAD_COND_INITITIALIZER;;
+
+void broadcastingCond(void);
+void broadcastingCond (void)
+{
+	(void)pthread_cond_broadcast(&gCond);
+}
 
 void sighandler(int sno)
 {
@@ -78,9 +94,75 @@ static int isDirectory(const char *path, DIR** ppdir)
 	return 0;
 }
 
+void * nilWorks (void *arg) 
+{
+	int bForcedQuit = 0;
+	workqueue_t	*wqueue = NULL;
+	workitem_t *work = NULL;
+	jobitem_t  *job = NULL;
+	while (!bQuit) {
+		pthread_mutex_lock (&gMutex);
+		pthread_cond_wait (&gCond, &gMutex);
+		pthread_mutex_unlock (&gMutex);
+		if (bQuit) {
+			break;
+		}
+		wqueue = popWorkFromFree(workQueue);
+		if (wqueue) {
+			addItem2Doing(workQueue, work);
+			job = (jobitem_t*)wqueue->priv;
+			set_state (job, WORK_DOING);
+			/* check pcm header */
+			/* if this file is pcm file and supported in this program 
+			   then working */
+			setSupportedFlag (job, SUPPORTED_FILE);
+			set_state (job, WORK_DONE);
+			addItem2Done(workQueue, work);
+		}
+	}
+	return (void*)0;
+}
+
+static int createTasks (int numCores)
+{
+	nil_task_t	*task = NULL;
+	int			limitTasks = numCores * 2;
+	for ( ; limitTasks > 0 ; limitTasks--) {
+		initTask (&task);
+		task->onCore = (limitTasks%numCores);
+		task->work_run = nilWorks;
+		addTask2TaskMgm (taskmanager, task);
+	}
+}
+
+void gatheringData (const char *fpath)
+{
+	jobitem_t *job = NULL;
+	workitem_t *wi = NULL;
+	if (!dpath) return ;
+	job = alloc_jobitem ((char*)fpath);
+	if (!job) {
+		return;
+	}
+	wi = allocWorkItem ((void*)job, sizeof(jobitem_t));
+	if (!wi) {
+		free_jobitem (job);
+		return ;
+	}
+	pthread_mutex_lock(&gMutex);
+	if (0!=addNewItem (workQueue, wi)){
+		free(wi);
+		free_jobitem (job);
+		pthread_mutex_unlock(&gMutex);
+	}
+	pthread_cond_signal(&gCond);
+	pthread_mutex_unlock(&gMutex);
+	return ;
+}
+
 int main (int ac, char **av)
 {
-	DIR	*pdir = NULL;
+	char *lookingdir = NULL;
 	if (ac < 2){
 		showUsage(*av);
 		return 1;
@@ -89,9 +171,21 @@ int main (int ac, char **av)
 	set_signal();
 
 	/* check whether  argument is a directory or not? */
-	if (0 != isDirectory((const char*)*(av+1), &pdir)){
+	if (0 != isDirectory((const char*)*(av+1), NULL)){
 		return 2;
 	}
-	closedir(pdir);
+
+	init_wq(&workQueue);
+	initTaskManager (&taskmanager);
+	getNumOfCores(&numOfCores);
+	createTasks (numOfCores);
+
+	lookingdir = (char*)*(av+1);
+	walkThDir (lookingdir, gatheringData);
+
+	waitAllTasks (taskmanager);
+
+	destroy_wq (&workQueue);
+	destroyTask(taskmanager);
 	return 0;
 }
