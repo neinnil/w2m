@@ -57,7 +57,7 @@ static int _init(workqueue_t* wq, nlist_t *item)
 	return -1;
 }
 
-static int  _exist(workqueue_t* wq, nlist_t **head, nlist_t *item)
+static int _exist(workqueue_t* wq, nlist_t **head, nlist_t *item)
 {
 	if (wq->op && wq->op->exist) {
 		return wq->op->exist (head, item);
@@ -87,15 +87,6 @@ static nlist_t *_search (workqueue_t *wq, nlist_t **head, void *key, int (*comp)
 	}
 	return NULL;
 }
-
-static int _exist (workqueue_t *wq, nlist_t **head, nlist_t *it)
-{
-	if (wq->op && wq->op->exist) {
-		return wq->op->exist (head, it);
-	}
-	return -1;
-}
-
 
 workitem_t * allocWorkItem (void *priv, int nSize)
 {
