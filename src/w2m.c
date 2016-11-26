@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -6,13 +7,14 @@
 #include <string.h> /* for strerror */
 #include <errno.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include "nein/osa.h"
 #include "workqueue.h"
 #include "jobitem.h"
 
-#define NIL_DEBUG(fmt, ...) do {
-	fprintf(stderr, fmt##__VA_ARGS__);
+#define NIL_DEBUG(fmt, ...) do {			\
+	fprintf(stderr, fmt##__VA_ARGS__);		\
 }while(0)
 
 void showUsage(char *progname){
@@ -20,16 +22,6 @@ void showUsage(char *progname){
 	printf ("Example: %s F:\\Music \n", progname);
 	printf ("Example: %s /home/nein/wprognamees \n", progname);
 }
-
-struct wQ {
-	struct	  list;
-	char	  *src_path;
-	char	  *dst_path;
-	void	  *pcmData;
-	pthread_t taker;
-	int		  state; /* 0: not owned, 1: owned, 2: done, 16: not supported */
-};
-
 
 /** global variables */
 static int bQuit = 0;
@@ -39,7 +31,7 @@ static workqueue_t		*workQueue = NULL;
 static int	numOfCores = 0;
 
 pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t  gCond = PTHEAD_COND_INITITIALIZER;;
+pthread_cond_t  gCond = PTHREAD_COND_INITIALIZER;;
 
 void broadcastingCond(void);
 void broadcastingCond (void)
@@ -62,7 +54,7 @@ static int set_signal(void)
 	priHdl.signo = SIGINT;
 	priHdl.hndl = sighandler;
 	int	   rv = 0;;
-	if(0!=(rv = setSigHandler(priHdl)))
+	if(0!=(rv = setSigHandler(&priHdl)))
 	{
 		rv = -errno;
 	}
@@ -104,21 +96,23 @@ void * nilWorks (void *arg)
 		pthread_mutex_lock (&gMutex);
 		pthread_cond_wait (&gCond, &gMutex);
 		pthread_mutex_unlock (&gMutex);
-		if (bQuit) {
-			break;
-		}
-		wqueue = popWorkFromFree(workQueue);
-		if (wqueue) {
-			addItem2Doing(workQueue, work);
-			job = (jobitem_t*)wqueue->priv;
-			set_state (job, WORK_DOING);
-			/* check pcm header */
-			/* if this file is pcm file and supported in this program 
-			   then working */
-			setSupportedFlag (job, SUPPORTED_FILE);
-			set_state (job, WORK_DONE);
-			addItem2Done(workQueue, work);
-		}
+		do {
+			if (bQuit) {
+				break;
+			}
+			work = popWorkFromFree(workQueue);
+			if (work) {
+				addItem2Doing(workQueue, work);
+				job = (jobitem_t*)(work->priv);
+				set_state (job, WORK_DOING);
+				/* check pcm header */
+				/* if this file is pcm file and supported in this program 
+				   then working */
+				setSupportedFlag (job, SUPPORTED_FILE);
+				set_state (job, WORK_DONE);
+				addItem2Done(workQueue, work);
+			}
+		} while (work);
 	}
 	return (void*)0;
 }
@@ -133,13 +127,14 @@ static int createTasks (int numCores)
 		task->work_run = nilWorks;
 		addTask2TaskMgm (taskmanager, task);
 	}
+	return 0;
 }
 
 void gatheringData (const char *fpath)
 {
 	jobitem_t *job = NULL;
 	workitem_t *wi = NULL;
-	if (!dpath) return ;
+	if (!fpath) return ;
 	job = alloc_jobitem ((char*)fpath);
 	if (!job) {
 		return;
@@ -186,6 +181,6 @@ int main (int ac, char **av)
 	waitAllTasks (taskmanager);
 
 	destroy_wq (&workQueue);
-	destroyTask(taskmanager);
+	destroy_TaskManager(&taskmanager);
 	return 0;
 }
