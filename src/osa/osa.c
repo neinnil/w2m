@@ -122,23 +122,31 @@ int walkThDir(char* dpath, void(*doing)(const char *fpath))
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
 	int fts_option = FTS_NOCHDIR ; //FTS_LOGICAL|FTS_NOCHDIR; 
+	printf ("try open %s\n", dpath);
 
 	if (!(pfts = fts_open (&dpath, fts_option, fts_comp)) ){
 		printf("fts_open error. \n");
 		return 2;
 	}
 	while (NULL!=(pfte=fts_read(pfts)) ) {
+		if (doing) {
+			fprintf (stderr, "doing something %s\n", pfte->fts_path);
+			doing ((const char*)pfte->fts_path);
+		}
+#if 0
 		if(NULL != (pchild=fts_children(pfts, fts_option))) {
 			printf("fts_children\n");
 			while (pchild && pchild->fts_link) {
 				pchild = pchild->fts_link;
 				if (pchild->fts_info == FTS_F) {
 					if (doing) {
+						fprintf (stderr, "doing something %s\n", pchild->fts_path);
 						doing ((const char*)pchild->fts_path);
 					}
 				}
 			}
 		}
+#endif
 	}
 	fts_close (pfts);
 #elif defined (__MINGW32__)
@@ -216,7 +224,7 @@ int getNumOfCores(int *core)
 	return nCore;
 }
 
-int creatTask(nil_task_t *taskarg)
+int createTask(nil_task_t *taskarg)
 {
 	int ret = 0;
 	pthread_t tid = (pthread_t)0;
@@ -333,11 +341,13 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 
 int waitAllTasks(nil_task_mgm_t *mgm)
 {
+	int rc = 0;
 	nil_task_t *task = NULL;
 	if (!mgm) return -EINVAL;
 	task = mgm->nextTask(mgm);
 	while (task) {
-		pthread_join(task->tid, NULL);
+		rc = pthread_join(task->tid, NULL);
+		printf ("pthread_join returns %d\n", rc);
 		task = mgm->nextTask(mgm);
 	}
 	return 0;
@@ -393,12 +403,13 @@ void destroy_TaskManager (nil_task_mgm_t **tmgm)
 int initTask (nil_task_t **task)
 {
 	if (task) {
-		nil_task_t *task = NULL;
-		task = (nil_task_t*)malloc(sizeof(nil_task_t));
-		if (!task) return -ENOMEM;
-		memset(task, 0x00, sizeof(nil_task_t));
-		task->sched_priority = task->sched_policy = -1;
-		task->onCore = -1;
+		nil_task_t *t = NULL;
+		t = (nil_task_t*)malloc(sizeof(nil_task_t));
+		if (!t) return -ENOMEM;
+		memset(t, 0x00, sizeof(nil_task_t));
+		t->sched_priority = t->sched_policy = -1;
+		t->onCore = -1;
+		*task = t;
 		return 0;
 	}
 	return -EINVAL;
