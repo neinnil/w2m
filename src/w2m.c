@@ -10,6 +10,7 @@
 #include <signal.h>
 
 #include "nein/osa.h"
+#include "nein/wave.h"
 #include "workqueue.h"
 #include "jobitem.h"
 
@@ -110,8 +111,11 @@ void * nilWorks (void *arg)
 				/* if this file is pcm file and supported in this program 
 				   then working */
 				{
-					int i=10000;
-					while (i-->0) ;
+					WAVE_FILE_INFO_T *info = NULL;
+					if (NULL!=(info = getWaveInfoFromFile (job->src))) {
+						printWaveInfo(info);
+						FREEWAVEFILEINFO(info);
+					}
 				}
 				setSupportedFlag (job, SUPPORTED_FILE);
 				set_state (job, WORK_DONE);

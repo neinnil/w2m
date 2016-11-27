@@ -129,7 +129,7 @@ int walkThDir(char* dpath, void(*doing)(const char *fpath))
 		return 2;
 	}
 	while (NULL!=(pfte=fts_read(pfts)) ) {
-		if (doing) {
+		if (pfte->fts_info == FTS_F && doing) {
 			fprintf (stderr, "doing something %s\n", pfte->fts_path);
 			doing ((const char*)pfte->fts_path);
 		}

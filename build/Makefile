@@ -32,7 +32,7 @@ UTILS = winfo wqtest cltest
 
 all: w2m $(UTILS)
 
-w2m: w2m.o jobitem.o workqueue.o clinkedlist.o getname.o osa.o
+w2m: w2m.o jobitem.o workqueue.o clinkedlist.o getname.o osa.o wave.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 winfo: winfo.o wave.o
