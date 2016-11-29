@@ -7,6 +7,7 @@ CC=gcc
 INCDIR=$(TOP_DIR)/include
 CFLAGS += -I$(INCDIR)
 CFLAGS += -I$(TOP_DIR)/src
+CFLAGS += -g
 LDFLAGS += -lpthread
 
 VPATH += $(TOP_DIR)/src

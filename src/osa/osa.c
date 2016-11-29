@@ -80,11 +80,13 @@ typedef void(*ftn_call)(const char *path);
 static ftn_call walking_dir_doing = NULL;
 int _ftw_fn (const char* path, const struct stat *st, int itype, struct FTW *sftw)
 {
+	fprintf (stderr, "PATH: %s\n", path);
 	if (itype == FTW_F) {
 		if (walking_dir_doing){
 			walking_dir_doing (path);
 		}
 	}
+	return 0;
 }
 #endif
 
@@ -151,7 +153,9 @@ int walkThDir(char* dpath, void(*doing)(const char *fpath))
 	fts_close (pfts);
 #elif defined (__MINGW32__)
 	walking_dir_doing = doing;
-	if (0!= (rc = nftw(dpath, _ftw_fn, 2048, FTW_PHYS|FTW_MOUNT))) {
+	printf ("%s:%d\n", __FILE__, __LINE__);
+	if (0!= (rc = nftw(dpath, _ftw_fn, 2048, 0))) {
+		fprintf(stderr, "nftw returns -1\n");
 		rc = - errno;
 	}
 #endif
@@ -217,6 +221,7 @@ int getNumOfCores(int *core)
 #elif defined (__MINGW32__) 
 //#if defined (PTW32_VERSION)
 	nCore = pthread_num_processors_np();
+	fprintf (stderr, "%d core%s\n", nCore, nCore>1?"s":"");
 //#endif
 #endif
 	if(nCore < 1) nCore = 1;
