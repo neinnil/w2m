@@ -188,7 +188,9 @@ int main (int ac, char **av)
 		showUsage(*av);
 		return 1;
 	}
-
+#if defined (__MINGW32__)
+	setvbuf (stdout, NULL, _IONBF, 0);
+#endif
 	set_signal();
 
 	/* check whether  argument is a directory or not? */
