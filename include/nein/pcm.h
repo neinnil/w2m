@@ -54,15 +54,15 @@ typedef struct _PCM_READER_DATA_T
 	void*			info; /* pointer to WAVE_FILE_INFO_T */
 } pcm_reader_data;
 
-int initPCM_Reader(pcm_reader_data **pcmhandle);
-int setPCM_OpenWaveFile(pcm_reader_data *pcmhandle, const char *file);
-int setPCM_WaveFile(pcm_reader_data *pcmhandle, FILE *infp);
-int setPCM_FromWaveInfo(pcm_reader_data* pcmhandle, FILE *infp, void* waveinfo);
+extern int initPCM_Reader(pcm_reader_data **pcmhandle);
+extern int setPCM_OpenWaveFile(pcm_reader_data *pcmhandle, const char *file);
+extern int setPCM_WaveFile(pcm_reader_data *pcmhandle, FILE *infp);
+extern int setPCM_FromWaveInfo(pcm_reader_data* pcmhandle, FILE *infp, void* waveinfo);
 
-int readPCM_data(pcm_reader_data* pcmhandle, int toread);
-int readPCM_data_int(pcm_reader_data*, int toread);
-int readPCM_data_short(pcm_reader_data*, int toread);
-int readPCM_data_ieee_float(pcm_reader_data*, int toread);
+extern int readPCM_data(pcm_reader_data* pcmhandle, int toread);
+extern int readPCM_data_int(pcm_reader_data* pcmhandle, int toread);
+extern int readPCM_data_short(pcm_reader_data* pcmhandle, int toread);
+extern int readPCM_data_ieee_float(pcm_reader_data* pcmhandle, int toread);
 
 	
 #ifdef __cplusplus

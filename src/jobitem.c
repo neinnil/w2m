@@ -21,6 +21,8 @@
 #include <errno.h>
 #include "jobitem.h"
 
+static void (*freeFn)(void *p) free_pcm_data = NULL;
+
 jobitem_t*	alloc_jobitem(char *src)
 {
 	int			rc = 0;
@@ -57,7 +59,9 @@ void	free_jobitem(jobitem_t *ji)
 
 		if (ji->src) free (ji->src);
 		if (ji->dst) free (ji->dst);
-//		if (ji->pcmInfo) free (pcmInfo);
+		if (ji->pcmInfo && free_pcm_data) {
+			free_pcm_data (ji->pcmInfo);
+		}
 
 		pthread_mutex_unlock(ji->lock);
 		rc = pthread_mutex_destroy(ji->lock);
@@ -79,6 +83,12 @@ int		get_state(jobitem_t *ji)
 		return ji->state;
 	} 
 	return -EINVAL;
+}
+
+void	set_Freefunction(void (*freeFn)(void *p))
+{
+	if (freeFn) 
+		free_pcm_data = freeFn;
 }
 
 int		isSupported(jobitem_t *ji)

@@ -26,13 +26,14 @@ struct _jobitem {
 
 typedef struct _jobitem jobitem_t;
 
-extern jobitem_t*		alloc_jobitem(char *src);
-extern void			free_jobitem(jobitem_t *ji);
-extern void			set_state(jobitem_t *ji, int state);
-extern int			get_state(jobitem_t *ji);
-extern int			isSupported(jobitem_t *ji);
-extern void			setSupportedFlag(jobitem_t *ji, int bSupport);
-extern int			setDestination(jobitem_t *ji, char *dest);
+extern jobitem_t*	alloc_jobitem (char *src);
+extern void			free_jobitem (jobitem_t *ji);
+extern void			set_Freefunction (void (*freeFn)(void *p));
+extern void			set_state (jobitem_t *ji, int state);
+extern int			get_state (jobitem_t *ji);
+extern int			isSupported (jobitem_t *ji);
+extern void			setSupportedFlag (jobitem_t *ji, int bSupport);
+extern int			setDestination (jobitem_t *ji, char *dest);
 extern int			setPcmData (jobitem_t *ji, void *pcmData);
 extern int			job_lock (jobitem_t *ji);
 extern int			job_unlock (jobitem_t *ji);
