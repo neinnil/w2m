@@ -21,7 +21,7 @@
 #include <errno.h>
 #include "jobitem.h"
 
-static void (*freeFn)(void *p) free_pcm_data = NULL;
+static void (*free_pcm_data)(void *p) = NULL;
 
 jobitem_t*	alloc_jobitem(char *src)
 {
