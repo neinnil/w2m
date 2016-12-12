@@ -1,3 +1,6 @@
+#ifndef _NEIN_WAVE_H
+#error "Don't include this file directly. Include nein/wave.h"
+#endif
 #ifndef _NEIN_WAVE_FMT_H
 #define _NEIN_WAVE_FMT_H
 

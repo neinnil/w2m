@@ -26,6 +26,7 @@ void showUsage(char *progname){
 
 /** global variables */
 static int bQuit = 0;
+static int doneCrawing = 0;
 
 static nil_task_mgm_t	*taskmanager = NULL;
 static workqueue_t		*workQueue = NULL;
@@ -172,7 +173,8 @@ static void completedCallBack(void)
 {
 	/* set timer */
 	int nTotal, nFree, nDoing, nDone;
-	if (0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone)){
+	if (doneCrawing 
+		&& 0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone)){
 		if (nTotal == nDone) {
 			bQuit = 2;
 			broadcastingCond();
@@ -212,7 +214,7 @@ int main (int ac, char **av)
 	lookingdir = (char*)*(av+1);
 	printf ("looking for files in %s\n", lookingdir);
 	walkThDir (lookingdir, gatheringData);
-
+	doneCrawing = 1;
 	waitAllTasks (taskmanager);
 
 	destroy_wq (&workQueue);

@@ -34,6 +34,10 @@ allocWAVE_BASE(void)
 	return p;
 }
 
+static long getFileLength (FILE *fp);
+static int  readRIFFHeader (FILE *fp, WAVE_HEADER_T *riff);
+static int	readNextChunk (FILE *fp, CHUNK_T *chunk);
+
 WAVE_FILE_INFO_T*
 getWaveInfoFromFile (const char* file)
 {
@@ -50,6 +54,9 @@ getWaveInfoFromFile (const char* file)
 	}
 
 	pOut = getWaveInfo (ifp);
+	if (pOut) {
+		pOut->name = strdup (file);
+	}
 
 	fclose (ifp);
 
@@ -60,7 +67,7 @@ WAVE_FILE_INFO_T*
 getWaveInfo (FILE* infp)
 {
 	WAVE_FILE_INFO_T *pOut = NULL;
-	int  nread = 0;
+	int		nread = 0;
 	int		needToRead = 0;
 
 	if (!infp){
@@ -71,49 +78,80 @@ getWaveInfo (FILE* infp)
 		fclose (infp);
 		return NULL;
 	}
-/* assume PCM format */
-	printf("sizeof(WAVE_PCM_T): %ld\n", sizeof(WAVE_PCM_T));
-	nread = fread((unsigned char*)&(pOut->waveInfo), 1, sizeof(WAVE_PCM_T), infp);
-	if (nread!=sizeof(WAVE_PCM_T)){
-		fprintf(stderr,"Fail to read from file\n");
-		free(pOut);
-		pOut = NULL;
-	} else {
-		WAVE_PCM_T	*pcm = NULL;
-		pcm = (WAVE_PCM_T*)&(pOut->waveInfo);
-		/* first check RIFF */
-		if (strncmp((const char*)pcm->riff.CHKIDS, "RIFF", 4)) {
-			fprintf(stderr,"There is no RIFF header.\n");
-			goto not_wave_file;
-		}
 
-		if (strncmp((const char*)pcm->waveid.WAVEIDS,"WAVE", 4)) {
-			fprintf(stderr,"There is no WAVE header.\n");
-			goto not_wave_file;
-		}
+	pOut->length = (uint32_t)getFileLength (infp);
+	pOut->isWAVEfile = readRIFFHeader (infp, &(pOut->waveHeader));
+	if (pOut->isWAVEfile && 
+			pOut->length != (uint32_t)(pOut->waveHeader.riff.chk_size + 8)) 
+	{
+		pOut->isWAVEfile = 0;
+	}
+	
+	if (pOut->isWAVEfile)
+	{
+		CHUNK_T	chk;
+		int		rc = 0;
+		void *p = NULL;
+		while (!feof(infp))
+		{
+			rc = readNextChunk (infp, &chk);
+			if (rc>0) {
+				long	skip_or_read = (long)chk.chk_size;
+				if (!strncmp((const char*)chk.CHKIDS, "afsp", 4))
+				{ /* temporary.. */
+					if (skip_or_read%2) skip_or_read += 1;
+				}
+				if (!strncmp((const char*)chk.CHKIDS, "fmt ", 4))
+				{
+					unsigned char buffer[64] = {0, };
+					rc = fread (buffer, 1, (size_t)skip_or_read, infp);
+					if (rc == skip_or_read)
+					{
+						p = &(pOut->waveInfo);
+						memcpy (p, &chk, sizeof(CHUNK_T));
+						p += sizeof(CHUNK_T);
+						if (skip_or_read > 40) skip_or_read = 40;
+						memcpy (p, buffer, skip_or_read);
 
-		if (pcm->fmt.chk_size == 16) {
-			pOut->waveType = WAVE_PCM_TYPE;
-		} else if (pcm->fmt.chk_size == 18) {
-			pOut->waveType = WAVE_NON_PCM_TYPE;
-			printf("sizeof(WAVE_NON_PCM_T): %ld\n", sizeof(WAVE_NON_PCM_T));
-			needToRead = sizeof(WAVE_NON_PCM_T) - sizeof(WAVE_PCM_T);
-		} else if (pcm->fmt.chk_size == 40) {
-			pOut->waveType = WAVE_EXT_FMT_TYPE;
-			printf("sizeof(WAVE_EXT_FMT_T): %ld\n", sizeof(WAVE_EXT_FMT_T));
-			needToRead = sizeof(WAVE_EXT_FMT_T) - sizeof(WAVE_PCM_T);
-		}
-		if (needToRead > 0) {
-			printf("Read More %d\n", needToRead);
-			unsigned char *p = (unsigned char*)&(pOut->waveInfo);
-			p += sizeof(WAVE_PCM_T);
-			nread = fread(p, sizeof(unsigned char), needToRead, infp);
-			if (nread != needToRead){
-				fprintf(stderr,"ToDo: handle error case.\n");
+						if (chk.chk_size == 16)
+							pOut->waveType = WAVE_PCM_TYPE;
+						else if (chk.chk_size == 18)
+							pOut->waveType = WAVE_NON_PCM_TYPE;
+						else if (chk.chk_size == 40)
+							pOut->waveType = WAVE_EXT_FMT_TYPE;
+					} 
+					else
+					{
+						printf ("Cannot read %ld bytes.\n", skip_or_read);
+					}
+				}
+				else if (!strncmp((const char*)chk.CHKIDS, "fact", 4))
+				{
+					p = &(pOut->factchk);
+					memcpy (p, &chk, sizeof(CHUNK_T));
+					//p += sizeof(CHUNK_T);
+					rc = fread(&(pOut->factchk.dwSampleLength), sizeof(uint32_t),1,infp);
+					printf ("\tdwSampleLength: %u\n", pOut->factchk.dwSampleLength);
+				}
+				else if (!strncmp((const char*)chk.CHKIDS, "data", 4))
+				{
+					p = &(pOut->datainfo);
+					memcpy (p, &chk, sizeof(CHUNK_T));
+					pOut->datainfo.offset = (uint32_t)ftell(infp);
+					if (skip_or_read%2) skip_or_read += 1;
+				}
+				else 
+				{
+					fseek (infp, skip_or_read, SEEK_CUR);
+				}
+			}
+			else 
+			{
+				break;
 			}
 		}
+		return pOut;
 	}
-	return pOut;
 not_wave_file:
 	free (pOut);
 	return NULL;
@@ -122,27 +160,36 @@ not_wave_file:
 /* 
 1: supported ,
 0: not supported 
-*/
+ */
 int
 isSupportedWAVEFile (WAVE_FILE_INFO_T* wavefile)
 {
-	if (!wavefile) {
-		return 0;
-	}
-	/* WAVE_FORMAT_PCM || WAVE_FORMAT_IEEE_FLOAT */
-	if (WAVE_FORMAT_PCM == getWAVEFormatTag(wavefile)) {
-		return 1;
+	if (wavefile) {
+		/* WAVE_FORMAT_PCM || WAVE_FORMAT_IEEE_FLOAT */
+		if (WAVE_FORMAT_PCM == getWAVEFormatTag(wavefile)) {
+			return 1;
+		}
 	}
 	return 0;
 }
 
-short
+#define WAVEINFO(type,x) ((type *)&((x)->waveInfo))
+
+uint16_t
 getWAVEFormatTag (WAVE_FILE_INFO_T* wavefile)
 {
-	if (!wavefile){
-		return -EINVAL;
+	if (wavefile){
+		uint16_t fmtTag = ((WAVE_PCM_T*)&(wavefile->waveInfo))->fmtTag;
+		if (fmtTag == WAVE_FORMAT_EXTENSIBLE) {
+			WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)&(wavefile->waveInfo);
+			if (extfmt->cbSize == 22) {
+				guid_struct *pguid = (guid_struct*)extfmt->subformat;
+				fmtTag = (uint16_t)pguid->data.data1;
+			}
+		}
+		return fmtTag;
 	}
-	return (((WAVE_PCM_T*)&wavefile->waveInfo)->fmtTag);
+	return -EINVAL;
 }
 
 short
@@ -159,23 +206,12 @@ getWAVEChannels (WAVE_FILE_INFO_T* wavefile)
 int
 getWAVESampleRate (WAVE_FILE_INFO_T* wavefile)
 {
-	int sampleRate = 0; 
-	if (!wavefile){
-		return -EINVAL;
+	if (wavefile){
+		return ((WAVE_PCM_T*)&wavefile->waveInfo)->nSamplePerSec;
 	}
-	if (WAVE_PCM_TYPE == wavefile->waveType){
-		sampleRate = ((WAVE_PCM_T*)&wavefile->waveInfo)->nSamplePerSec;
-	} else if (WAVE_NON_PCM_TYPE == wavefile->waveType) {
-		sampleRate = ((WAVE_NON_PCM_T*)&wavefile->waveInfo)->nSamplePerSec;
-	} else if (WAVE_EXT_FMT_TYPE == wavefile->waveType) {
-		sampleRate = ((WAVE_EXT_FMT_T*)&wavefile->waveInfo)->nSamplePerSec;
-	} else {
-		fprintf(stderr,"Not supported wave file format.\n");
-	}
-	return sampleRate;
+	return -EINVAL;
 }
 
-#define WAVEINFO(type,x) ((type *)&((x)->waveInfo))
 
 short
 getWAVEBitsPerSample (WAVE_FILE_INFO_T* wavefile)
@@ -185,42 +221,27 @@ getWAVEBitsPerSample (WAVE_FILE_INFO_T* wavefile)
 		return -EINVAL;
 	}
 	if (WAVE_PCM_TYPE == wavefile->waveType){
-		bitpersample = ((WAVE_PCM_T*)&wavefile->waveInfo)->wBitsPerSample;
+		bitpersample = ((WAVE_PCM_T*)&(wavefile->waveInfo))->wBitsPerSample;
 	} else if (WAVE_NON_PCM_TYPE == wavefile->waveType) {
-		bitpersample = ((WAVE_NON_PCM_T*)&wavefile->waveInfo)->wBitsPerSample;
+		bitpersample = ((WAVE_NON_PCM_T*)&(wavefile->waveInfo))->wBitsPerSample;
 	} else if (WAVE_EXT_FMT_TYPE == wavefile->waveType) {
-		bitpersample = ((WAVE_EXT_FMT_T*)&wavefile->waveInfo)->wBitsPerSample;
+		bitpersample = ((WAVE_EXT_FMT_T*)&(wavefile->waveInfo))->wBitsPerSample;
+		if (bitpersample == 0) {
+			bitpersample = ((WAVE_EXT_FMT_T*)&wavefile->waveInfo)->Samples.wSamplesPerBlock;
+		}
 	} else {
 		fprintf(stderr,"Not supported wave file format.\n");
 	}
 	return bitpersample;
 }
 
-int
+int 
 getWAVEDataLength (WAVE_FILE_INFO_T *wavefile)
 {
-	CHUNK_T	*data = NULL;
-	if (!wavefile){
-		return -EINVAL;
+	if (wavefile){
+		return wavefile->datainfo.data.chk_size;
 	}
-	if (WAVE_PCM_TYPE == wavefile->waveType) {
-//		WAVE_PCM_T *pcm = &(wavefile->waveInfo);
-//		data = &(pcm->data);
-		data = &(((WAVE_PCM_T*)&(wavefile->waveInfo))->data);
-	} else if (WAVE_NON_PCM_TYPE == wavefile->waveType) {
-//		WAVE_NON_PCM_T *nonpcm = &(wavefile->waveInfo);
-//		data = &(nonpcm->data);
-		data = &(((WAVE_PCM_T*)&(wavefile->waveInfo))->data);
-	} else if (WAVE_EXT_FMT_TYPE == wavefile->waveType) {
-//		WAVE_EXT_FMT_T *ext = &(wavefile->waveInfo);
-//		data = &(ext->data);
-		data = &((WAVE_EXT_FMT_T*)&wavefile->waveInfo)->data;
-	} else {
-		fprintf(stderr,"Not Supported sort of wave file.\n");
-		return -EINVAL;
-	}
-
-	return data->chk_size;
+	return -EINVAL;
 }
 
 static void printChunk(CHUNK_T *chk)
@@ -229,45 +250,174 @@ static void printChunk(CHUNK_T *chk)
 			chk->CHKIDS, chk->CHKID, chk->chk_size );
 }
 
-void 
-printWaveInfo(WAVE_FILE_INFO_T *info)
+long getFileLength (FILE *fp)
 {
-	if (NULL == info) return;
-	WAVE_PCM_T	*pcm = (WAVE_PCM_T*)&info->waveInfo;
+	int length = -1L;
+	if (fp) 
+	{
+		if (0==fseek (fp, 0L, SEEK_END))
+		{
+			length = ftell (fp);
+			fseek (fp, 0L, SEEK_SET);
+		}
+	}
+	return length;
+}
 
-	printChunk(&pcm->riff);
-	printf ("ID: [%4.4s] (0x%x)\n", pcm->waveid.WAVEIDS, pcm->waveid.WAVEID);
-	printChunk(&pcm->fmt);
-	printf ("FormatTag: 0x%04x\n", pcm->fmtTag);
-	printf ("No. Channels: %hd\n", pcm->nChannels);
-	printf ("Sample/Sec: %d\n", pcm->nSamplePerSec);
-	printf ("AvgBytes/Sec: %d\n", pcm->nAvgBytesPerSec);
-	printf ("Blcak Align: %hd\n", pcm->nBlockAlign);
-	printf ("Bits/Sample: %hd\n", pcm->wBitsPerSample);
+int readRIFFHeader (FILE* fp, WAVE_HEADER_T *riff_tag)
+{
+	int rc = 0;
+	if (fp) 
+	{
+		WAVE_HEADER_T riff;
+		/* rewind */
+		long currPos = ftell (fp);
+		if (currPos>0) 
+			fseek (fp, 0L, SEEK_SET);
+		rc = fread (&riff, sizeof(WAVE_HEADER_T), 1, fp);
+		if (rc == 1)
+		{
+			printChunk(&riff.riff);
+			printf ("ID: %4.4s, %x\n", riff.waveid.WAVEIDS, riff.waveid.WAVEID);
+			if ( strncmp((const char*)riff.riff.CHKIDS, "RIFF", 4) 
+				|| strncmp((const char*)riff.waveid.WAVEIDS, "WAVE", 4) )
+			{
+				rc =0;
+			}
+			else 
+			{
+				rc = 1;
+				if (riff_tag)
+				{
+					memcpy (riff_tag, &riff, sizeof(WAVE_HEADER_T));
+				}
+			}
+		}
+		else 
+		{
+			rc = 0;
+		}
+	} 
+	return rc;
+}
 
-	if (WAVE_PCM_TYPE == info->waveType) {
-		printf ("Normal PCM format\n");
-		printChunk(&pcm->data);
-	} else if (WAVE_NON_PCM_TYPE == info->waveType) {
-		WAVE_NON_PCM_T *nonpcm = (WAVE_NON_PCM_T*)&info->waveInfo;
-		printf("cb Size: %hd\n", nonpcm->cbSize);
-		printChunk(&nonpcm->fact);
-		printf ("SampleLength: %d\n", nonpcm->dwSampleLength);
-		printChunk(&nonpcm->data);
-	} else if (WAVE_EXT_FMT_TYPE == info->waveType) {
-		int i=0;
-		WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)&info->waveInfo;
-		printf("cb Size: %hd\n", extfmt->cbSize);
-		printf("ValidBitsPerSample: %hd\n", extfmt->wValidBitsPerSample);
-		printf("Channel mask: h%08x\n", extfmt->dwChannelMask);
-		printf("SubFormat: ");
+int readNextChunk (FILE *fp, CHUNK_T *chunk)
+{
+	int rc = -1;
+	if (fp && chunk)
+	{
+		rc = fread (chunk, sizeof(CHUNK_T), 1, fp);
+		if (rc)
+		{
+			if (chunk->ID.chkids[0]=='\0')
+			{
+				printf ("ID: %c%c%c%cs, %x\n"
+						, chunk->ID.chkids[0]
+						, chunk->ID.chkids[1]
+						, chunk->ID.chkids[2]
+						, chunk->ID.chkids[3]
+						, chunk->CHKID);
+			}
+			else 
+			{
+				printf ("ID: %4.4s, %x\n", chunk->CHKIDS, chunk->CHKID);
+			}
+			printf ("Length: %u\n", chunk->chk_size);
+			rc = (int)chunk->chk_size;
+		}
+	}
+	return rc;
+}
+
+static void printWaveFmtInfo (void *p)
+{
+	WAVE_PCM_T *pcm = (WAVE_PCM_T*)p;
+	printf ("\tID: %4.4s, %x\n", pcm->fmt.CHKIDS, pcm->fmt.CHKID);
+	printf ("\tLength: %u\n", pcm->fmt.chk_size);
+	printf ("\tFormatTag: 0x%04x\n", pcm->fmtTag);
+	printf ("\tNo. Channels: %hd\n", pcm->nChannels);
+	printf ("\tSample/Sec: %d\n", pcm->nSamplePerSec);
+	printf ("\tAvgBytes/Sec: %d\n", pcm->nAvgBytesPerSec);
+	printf ("\tBlcak Align: %hd\n", pcm->nBlockAlign);
+	printf ("\tBits/Sample: %hd\n", pcm->wBitsPerSample);
+	if (pcm->fmt.chk_size > 16)
+	{
+		WAVE_NON_PCM_T	*nonpcm = (WAVE_NON_PCM_T*)p;
+		printf ("\tcbSize: %hd\n", nonpcm->cbSize);
+	}
+	if (pcm->fmt.chk_size > 18)
+	{
+		int i = 0;
+		WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)p;
+		printf("\tValidBitsPerSample: %hd\n", extfmt->Samples.wValidBitsPerSample);
+		printf("\tChannel mask: h%08x\n", extfmt->dwChannelMask);
+		printf("\tSubFormat: ");
 		for ( ; i<16; i++) {
 			printf("%02x%s",extfmt->subformat[i],i==15?"\n":" ");
 		}
-		printChunk(&extfmt->fact);
-		printf ("SampleLength: %d\n", extfmt->dwSampleLength);
-		printChunk(&extfmt->data);
-	} else {
-		fprintf (stderr, "Ooops!!!");
+		{
+			guid_struct *pguid = (guid_struct*)extfmt->subformat;
+			char *tmp = NULL;
+			if (WAVE_FORMAT_PCM == pguid->data.data1)
+			{
+				static char WAVE_PCM[] = "PCM";
+				tmp = WAVE_PCM;
+			}
+			else if (WAVE_FORMAT_IEEE_FLOAT == pguid->data.data1)
+			{
+				static char WAVE_IEEE_FLOAT[] = "IEEE_FLOAT";
+				tmp = WAVE_IEEE_FLOAT;
+			}
+			else if (WAVE_FORMAT_ALAW == pguid->data.data1)
+			{
+				static char WAVE_ALAW[] = "ALAW";
+				tmp = WAVE_ALAW;
+			}
+			else if (WAVE_FORMAT_MULAW == pguid->data.data1)
+			{
+				static char WAVE_MULAW[] = "MULAW";
+				tmp = WAVE_MULAW;
+			}
+			else if (WAVE_FORMAT_ADPCM == pguid->data.data1)
+			{
+				static char WAVE_ADPCM[] = "ADPCM";
+				tmp = WAVE_ADPCM;
+			}
+			else if (WAVE_FORMAT_MPEG == pguid->data.data1)
+			{
+				static char WAVE_MPEG[] = "MPEG";
+				tmp = WAVE_MPEG;
+			} else {
+				static char WAVE_NON[] = "NONE";
+				tmp = WAVE_NON;
+			}
+			printf("\t\tType: %s\n",  tmp);
+		}
 	}
+}
+
+void 
+printWaveInfo(WAVE_FILE_INFO_T *info)
+{
+	if (info)
+	{
+		printf("File: %s\n", info->name);
+		printf("Length: %u\n", info->length);
+		printf ("is it a wave file? %s\n", info->isWAVEfile?"Yes":"No");
+		if (info->isWAVEfile) 
+		{
+			printChunk(&(info->waveHeader.riff));
+			printf ("ID: [%4.4s] (0x%x)\n"
+				, info->waveHeader.waveid.WAVEIDS, info->waveHeader.waveid.WAVEID);
+			printWaveFmtInfo ( &(info->waveInfo) );
+			printChunk(&(info->datainfo.data));
+			printf("offset of data: %u\n", info->datainfo.offset);
+			if (info->factchk.fact.chk_size)
+			{
+				printChunk(&(info->factchk.fact));
+				printf ("\tdwSampleLength: %u\n", info->factchk.dwSampleLength);
+			}
+		}
+	}
+	return ;
 }
