@@ -99,12 +99,12 @@ typedef struct _WAVE_PCM_T {
 	CHUNK_T		riff;
 	WAVEID_T	waveid;
 	CHUNK_T		fmt;
-	uint16_t		fmtTag;
-	uint16_t		nChannels;
-	uint32_t			nSamplePerSec;
-	uint32_t			nAvgBytesPerSec;
-	uint16_t		nBlockAlign;
-	uint16_t		wBitsPerSample;
+	uint16_t	fmtTag;
+	uint16_t	nChannels;
+	uint32_t	nSamplePerSec;
+	uint32_t	nAvgBytesPerSec;
+	uint16_t	nBlockAlign;
+	uint16_t	wBitsPerSample;
 	CHUNK_T		data;
 	/* unsigned char samples[1]; */
 } WAVE_PCM_T;
@@ -113,15 +113,15 @@ typedef struct _WAVE_NON_PCM_T {
 	CHUNK_T		riff;
 	WAVEID_T	waveid;
 	CHUNK_T		fmt; /* chunk size: 18 */
-	uint16_t		fmtTag;
-	uint16_t		nChannels;
-	uint32_t			nSamplePerSec;
-	uint32_t			nAvgBytesPerSec;
-	uint16_t		nBlockAlign;
-	uint16_t		wBitsPerSample;
-	uint16_t		cbSize; /* value: 0 */
+	uint16_t	fmtTag;
+	uint16_t	nChannels;
+	uint32_t	nSamplePerSec;
+	uint32_t	nAvgBytesPerSec;
+	uint16_t	nBlockAlign;
+	uint16_t	wBitsPerSample;
+	uint16_t	cbSize; /* value: 0 */
 	CHUNK_T		fact;
-	uint32_t			dwSampleLength;
+	uint32_t	dwSampleLength;
 	CHUNK_T		data;
 	/* unsigned char samples[1]; */
 } WAVE_NON_PCM_T;
