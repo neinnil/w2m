@@ -244,6 +244,16 @@ getWAVEDataLength (WAVE_FILE_INFO_T *wavefile)
 	return -EINVAL;
 }
 
+void
+freeWaveInfo (WAVE_FILE_INFO_T *info)
+{
+	if (info)
+	{
+		if (info->name) free(info->name);
+		free (info);
+	}
+}
+
 static void printChunk(CHUNK_T *chk)
 {
 	printf ("ID: [%4.4s] (0x%x), Length: %d\n",
@@ -309,6 +319,7 @@ int readNextChunk (FILE *fp, CHUNK_T *chunk)
 		rc = fread (chunk, sizeof(CHUNK_T), 1, fp);
 		if (rc)
 		{
+#ifndef NDEBUG
 			if (chunk->ID.chkids[0]=='\0')
 			{
 				printf ("ID: %c%c%c%cs, %x\n"
@@ -323,6 +334,7 @@ int readNextChunk (FILE *fp, CHUNK_T *chunk)
 				printf ("ID: %4.4s, %x\n", chunk->CHKIDS, chunk->CHKID);
 			}
 			printf ("Length: %u\n", chunk->chk_size);
+#endif
 			rc = (int)chunk->chk_size;
 		}
 	}

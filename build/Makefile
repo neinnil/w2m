@@ -47,5 +47,5 @@ wqtest: clinkedlist.o workqueue.o wqtest.o
 
 
 clean:
-	rm -f $(UTILS) *.o
+	rm -f w2m $(UTILS) *.o
 

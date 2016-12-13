@@ -221,6 +221,7 @@ typedef struct _WAVE_FILE_INFO_T {
 /* getWaveInfo, getWaveInfoFromFile */
 extern WAVE_FILE_INFO_T* getWaveInfoFromFile(const char* file);
 extern WAVE_FILE_INFO_T* getWaveInfo(FILE *infp);
+extern void		freeWaveInfo (WAVE_FILE_INFO_T *info);
 
 extern int	 isSupportedWAVEFile(WAVE_FILE_INFO_T* waveinfo);
 extern uint16_t getWAVEFormatTag(WAVE_FILE_INFO_T* waveinfo);

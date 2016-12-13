@@ -27,10 +27,26 @@ void showUsage(char *progname){
 /** global variables */
 static int bQuit = 0;
 static int doneCrawing = 0;
+static int nTotal = 0;
+static int nFree = 0;
+static int nDoing = 0;
+static int nDone = 0;;
 
 static nil_task_mgm_t	*taskmanager = NULL;
 static workqueue_t		*workQueue = NULL;
 static int	numOfCores = 0;
+
+#define LIST_OF_FREE	0
+#define LIST_OF_DOING	1
+#define LIST_OF_DONE	2
+
+typedef workitem_t* (*nextWork)(workqueue_t *) ;
+
+nextWork nextItem[3] = {
+	getNextFreeWork,
+	getNextDoingWork,
+	getNextDoneWork
+};
 
 pthread_mutex_t gMutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t  gCond = PTHREAD_COND_INITIALIZER;;
@@ -50,6 +66,55 @@ void sighandler(int sno)
 	}
 }
 
+void print_item (workitem_t *wit)
+{
+	jobitem_t *job = NULL;
+	WAVE_FILE_INFO_T *winfo = NULL;
+	job = (jobitem_t*)(wit->priv);
+	if (job) 
+	{
+		winfo = (WAVE_FILE_INFO_T *)(job->pcmInfo);
+		if (winfo)
+		{
+			printf ("%20p | %20p | %20p | %20p \n",
+					wit->priv, wit, wit->list.prev, wit->list.next);
+			printWaveInfo(winfo);
+		}
+	}
+}
+
+static void print_list (workqueue_t *wq, int listType, int limit)
+{
+	workitem_t *wit = NULL;
+	
+	printf ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
+	wit = nextItem[listType](wq);
+	while (wit && limit) {
+		print_item(wit);
+		wit = nextItem[listType](wq);
+		limit--;
+	}
+}
+
+static void printWorkResult (workqueue_t *wq)
+{
+	if (wq) 
+	{
+		getNumbState(wq, &nTotal, &nFree, &nDoing, &nDone);
+
+		wq->curFree = wq->curDoing = wq->curDone = NULL;
+
+		printf ("Free working list\n");
+		print_list (wq, LIST_OF_FREE, nFree);
+		printf ("Doing working list\n");
+		print_list (wq, LIST_OF_DOING, nDoing);
+		printf ("Done working list\n");
+		print_list (wq, LIST_OF_DONE, nDone);
+
+		wq->curFree = wq->curDoing = wq->curDone = NULL;
+	}
+}
+
 static int set_signal(void)
 {
 	struct sighandle_set priHdl;
@@ -61,6 +126,15 @@ static int set_signal(void)
 		rv = -errno;
 	}
 	return rv;
+}
+
+static void freeJobs (void *p) 
+{
+	if (p)
+	{
+		WAVE_FILE_INFO_T *info = (WAVE_FILE_INFO_T*)p;
+		freeWaveInfo (info);
+	}
 }
 
 /**
@@ -114,8 +188,11 @@ void * nilWorks (void *arg)
 				{
 					WAVE_FILE_INFO_T *info = NULL;
 					if (NULL!=(info = getWaveInfoFromFile (job->src))) {
+						setPcmData (job, (void*)info);
+						/*
 						printWaveInfo(info);
 						FREEWAVEFILEINFO(info);
+						*/
 					}
 				}
 				setSupportedFlag (job, SUPPORTED_FILE);
@@ -162,6 +239,7 @@ void gatheringData (const char *fpath)
 	if (0!=addNewItem (workQueue, wi)){
 		free(wi);
 		free_jobitem (job);
+		return;
 	}
 	pthread_mutex_lock(&gMutex);
 	pthread_cond_signal(&gCond);
@@ -172,7 +250,6 @@ void gatheringData (const char *fpath)
 static void completedCallBack(void)
 {
 	/* set timer */
-	int nTotal, nFree, nDoing, nDone;
 	if (doneCrawing 
 		&& 0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone)){
 		if (nTotal == nDone) {
@@ -203,6 +280,7 @@ int main (int ac, char **av)
 
 	init_wq(&workQueue);
 	setCompleteFn (workQueue, completedCallBack);
+	set_Freefunction (freeJobs);
 	printf ("--af initializing workqueue. \n");
 	initTaskManager (&taskmanager);
 	printf ("--af initializing task manager. \n");
@@ -216,6 +294,8 @@ int main (int ac, char **av)
 	walkThDir (lookingdir, gatheringData);
 	doneCrawing = 1;
 	waitAllTasks (taskmanager);
+
+	printWorkResult (workQueue);
 
 	destroy_wq (&workQueue);
 	destroy_TaskManager(&taskmanager);
