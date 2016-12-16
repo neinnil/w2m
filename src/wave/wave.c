@@ -139,6 +139,7 @@ getWaveInfo (FILE* infp)
 					memcpy (p, &chk, sizeof(CHUNK_T));
 					pOut->datainfo.offset = (uint32_t)ftell(infp);
 					if (skip_or_read%2) skip_or_read += 1;
+					fseek (infp, skip_or_read, SEEK_CUR);
 				}
 				else 
 				{
@@ -242,6 +243,16 @@ getWAVEDataLength (WAVE_FILE_INFO_T *wavefile)
 		return wavefile->datainfo.data.chk_size;
 	}
 	return -EINVAL;
+}
+
+long 
+getWAVEDataOffset (WAVE_FILE_INFO_T*	waveinfo)
+{
+	if (waveinfo)
+	{
+		return waveinfo->datainfo.offset;
+	}
+	return 0L;
 }
 
 void

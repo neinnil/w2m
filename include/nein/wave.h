@@ -229,6 +229,7 @@ extern short getWAVEChannels(WAVE_FILE_INFO_T* waveinfo);
 extern int	 getWAVESampleRate(WAVE_FILE_INFO_T* waveinfo);
 extern short getWAVEBitsPerSample(WAVE_FILE_INFO_T* waveinfo);
 extern int	 getWAVEDataLength (WAVE_FILE_INFO_T*	waveinfo);
+extern long  getWAVEDataOffset (WAVE_FILE_INFO_T*	waveinfo);
 
 //extern int	 isWAVE_IEEE_FLOAT(WAVE_FILE_INFO_T *waveinfo);
 //extern int	 isWAVE_EIGHTBITSTREAM(WAVE_FILE_INFO_T *waveinfo);
