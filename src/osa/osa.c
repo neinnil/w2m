@@ -15,6 +15,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
+#if defined (__linux__)
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#endif
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -22,7 +28,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#if defined (__LINUX__) || defined (__APPLE__)
+#if defined (__linux__) || defined (__APPLE__)
 #include <fts.h>
 #elif defined (__MINGW32__)
 #include <ftw.h>
@@ -41,7 +47,7 @@ int assign2core(int run_on, int numCore) ;
 int setSigHandler(sighandle_set *sigset)
 {
 	int	rc = 0;
-#if defined(__LINUX__) || defined (__APPLE__)
+#if defined(__linux__) || defined (__APPLE__)
 	struct sigaction sa;
 	sa.sa_handler = (void (*)(int))(sigset->hndl);
 	sigemptyset (&sa.sa_mask);
@@ -56,7 +62,7 @@ int setSigHandler(sighandle_set *sigset)
 	return rc;
 }
 
-#if defined (__LINUX__) || defined (__APPLE__)
+#if defined (__linux__) || defined (__APPLE__)
 static int fts_comp(const FTSENT **l, const FTSENT **r)
 {
 	FTSENT *lp, *rp;
@@ -119,7 +125,7 @@ static int _delTask (nil_task_mgm_t *mg, nil_task_t *task)
 int walkThDir(char* dpath, void(*doing)(const char *fpath))
 {
 	int rc = 0;
-#if defined (__LINUX__) || defined (__APPLE__)
+#if defined (__linux__) || defined (__APPLE__)
 	FTS *pfts = NULL;
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
@@ -216,7 +222,7 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 int getNumOfCores(int *core)
 {
 	int nCore = 1;
-#if defined(__LINUX__) || defined (__linux__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__APPLE__)
 	nCore = sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined (__MINGW32__) 
 //#if defined (PTW32_VERSION)
@@ -234,6 +240,8 @@ int createTask(nil_task_t *taskarg)
 	int ret = 0;
 	pthread_t tid = (pthread_t)0;
 	pthread_attr_t	*attr = NULL;
+	size_t		stackSize = (1*1024*1024);
+	int		attr_allocated_in_this_function = 0;
 #if defined(__USE_XOPEN2K) || defined (__MINGW32__)
 	pthread_barrier_t *barrier = NULL;
 #endif
@@ -243,30 +251,35 @@ int createTask(nil_task_t *taskarg)
 
 	if (taskarg->attr)
 		attr = taskarg->attr;
-	if (-1 !=taskarg->sched_policy) {
-		if (-1 !=taskarg->sched_priority){
-			if (NULL==attr){
-				attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
-				if (NULL != attr) {
-					if(0==pthread_attr_init(attr)) {
-						struct sched_param schedparam = {0,};
-						schedparam.sched_priority  = taskarg->sched_priority;
-						ret = pthread_attr_setschedpolicy(attr, taskarg->sched_policy);
-						ret |= pthread_attr_setschedparam(attr, &schedparam);
-					}
-				}
-			}
+	if (NULL == attr)
+	{
+		attr = (pthread_attr_t*)malloc(sizeof(pthread_attr_t));
+		ret = pthread_attr_init (attr);
+		attr_allocated_in_this_function = 1;
+	}
+	/** set stack size */
+	ret = pthread_attr_setstacksize (attr, stackSize);
+	if (-1 != taskarg->sched_policy) {
+		if (-1 != taskarg->sched_priority){
+				struct sched_param schedparam = {0,};
+				schedparam.sched_priority  = taskarg->sched_priority;
+				ret |= pthread_attr_setschedpolicy(attr, taskarg->sched_policy);
+				ret |= pthread_attr_setschedparam(attr, &schedparam);
 		}
 	}
-#if defined(__LINUX__)
+#if defined(__linux__)
 	if ( -1 != taskarg->onCore ) {
 		(void)assign2coreInMain( RUN_ON_LINUX, taskarg->onCore, &attr);
 	}
 #endif
 
-	ret = pthread_create(&tid, attr, _task_work, (void*)taskarg);
+	ret |= pthread_create(&tid, attr, _task_work, (void*)taskarg);
 	if (!ret)
 		taskarg->tid = tid;
+	if (attr_allocated_in_this_function) {
+		pthread_attr_destroy (attr);
+		free (attr);
+	}
 	return ret;
 }
 
@@ -298,7 +311,7 @@ void *_task_work(void *arg)
 int assign2core(int run_on, int numCore) 
 {
 	int rc = 0;
-#if defined (__LINUX__)
+#if defined (__linux__)
 	if (RUN_ON_LINUX != run_on) return -1;
 
 #elif defined(__MINGW32__)
@@ -311,7 +324,7 @@ int assign2core(int run_on, int numCore)
 int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 {
 	int rc = 0;
-#if defined (__LINUX__) && defined (_GNU_SOURCE)
+#if defined (__linux__) && defined (_GNU_SOURCE)
 	pthread_attr_t *attr = NULL;
 	cpu_set_t cpuset;
 	if (RUN_ON_LINUX != os_run) {
@@ -332,7 +345,7 @@ int assign2coreInMain(int os_run, int numCore, pthread_attr_t **ppattr)
 	}
 	CPU_ZERO(&cpuset);
 	CPU_SET(numCore,&cpuset);
-	rc = pthread_attr_setaffinity_np(attr,sizeof(cpu_set_t),cputset);
+	rc = pthread_attr_setaffinity_np(attr,sizeof(cpu_set_t),&cpuset);
 #elif defined(__MINGW32__)
 	if (RUN_ON_WIN_MINGW != os_run) {
 		return -1;
