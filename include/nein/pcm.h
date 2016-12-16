@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-struct PcmBuffer {
+struct _PcmBuffer {
 	void	*ch[2];			/* buffer for each channel */
 	int		w;				/* sample width */
 	int		n;				/* number samples allocated */
@@ -35,7 +35,7 @@ struct PcmBuffer {
 #endif
 };
 
-typedef struct PcmBuffer PcmBuffer;
+typedef struct _PcmBuffer PcmBuffer;
 
 typedef struct _PCM_READER_DATA_T
 {
@@ -55,9 +55,12 @@ typedef struct _PCM_READER_DATA_T
 } pcm_reader_data;
 
 extern int initPCM_Reader(pcm_reader_data **pcmhandle);
+extern void freePCM_Reader(pcm_reader_data *pcmhandle);
 extern int setPCM_OpenWaveFile(pcm_reader_data *pcmhandle, const char *file);
 extern int setPCM_WaveFile(pcm_reader_data *pcmhandle, FILE *infp);
 extern int setPCM_FromWaveInfo(pcm_reader_data* pcmhandle, FILE *infp, void* waveinfo);
+
+extern int setPCM_file_position(pcm_reader_data* pcmhandle);
 
 extern int readPCM_data(pcm_reader_data* pcmhandle, int toread);
 extern int readPCM_data_int(pcm_reader_data* pcmhandle, int toread);

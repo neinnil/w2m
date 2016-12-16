@@ -79,6 +79,8 @@ void print_item (workitem_t *wit)
 			printf ("%20p | %20p | %20p | %20p \n",
 					wit->priv, wit, wit->list.prev, wit->list.next);
 			printWaveInfo(winfo);
+			printf ("Is this file supported to convert? %s",
+					job->isSupported?"YES":"NO");
 		}
 	}
 }
@@ -186,13 +188,10 @@ void * nilWorks (void *arg)
 				/* if this file is pcm file and supported in this program 
 				   then working */
 				{
-					WAVE_FILE_INFO_T *info = NULL;
-					if (NULL!=(info = getWaveInfoFromFile (job->src))) {
-						setPcmData (job, (void*)info);
-						/*
-						printWaveInfo(info);
-						FREEWAVEFILEINFO(info);
-						*/
+					WAVE_FILE_INFO_T *wfinfo = NULL;
+					if (NULL!=(wfinfo = getWaveInfoFromFile (job->src))) {
+						job->isSupported = isSupportedWAVEFile(wfinfo);
+						setPcmData (job, (void*)wfinfo);
 					}
 				}
 				setSupportedFlag (job, SUPPORTED_FILE);

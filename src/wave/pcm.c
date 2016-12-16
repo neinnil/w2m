@@ -1,6 +1,11 @@
+#include <stdio.h>
 #include <stdlib.h>
+#include <error.h>
 #include "nein/wave.h"
 #include "nein/pcm.h"
+
+
+static void freePcmBuffer (PcmBuffer *pbuf);
 
 /*
    The arugument of initPCM_Reader, pamhandle, must be a null pointer.
@@ -34,27 +39,131 @@ int
 setPCM_OpenWaveFile(pcm_reader_data *pcmhandle, const char *file)
 {
 	FILE *fp = NULL;
-	WAVEINFO_BASE_T	*wvp = NULL;
-	if (!pcmhandle) {
-		return -EINVAL;
+	int	  rc = -EINVAL;;
+
+	if (pcmhandle) {
+		if(!(fp = fopen (file, "rb"))) {
+			return -ENOENT;
+		}
+		rc = setPCM_WaveFile(pcmhandle, fp);
+		if (rc != 0){
+			fclose (fp);
+		}
 	}
 
-	if(!(fp = fopen (file, "rb"))) {
-		return -ENOENT;
+	return rc;
+}
+
+void
+freePCM_Reader(pcm_reader_data *pcmhandle)
+{
+	if (pcmhandle)
+	{
+		if (pcmhandle->wave_in) fclose (pcmhandle->wave_in);
+		if (pcmhandle->in_id3v2_tag) free(pcmhandle->in_id3v2_tag);
+		if (pcmhandle->info) {
+			freeWaveInfo ((WAVE_FILE_INFO_T*)pcmhandle->info);
+		}
+		free (pcmhandle);
+	}
+}
+
+int
+setPCM_WaveFile(pcm_reader_data *pcmhandle, FILE *infp)
+{
+	if (pcmhandle && infp)
+	{
+		WAVE_FILE_INFO_T	*wfinfo = NULL;
+
+		if (!(wfinfo = getWaveInfo (infp))) {
+			return -EINVAL; /* to-do: speicify error code */
+		}
+
+		if (isSupportedWAVEFile(wfinfo)) {
+			freeWaveInfo (wfinfo);
+			return -EINVAL; /* to do: specifiy error code */
+		}
+
+		pcmhandle->info = (void*)wfinfo;
+		pcmhandle->wave_in = infp;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int
+setPCM_FromWaveInfo(pcm_reader_data* pcmhandle, FILE *infp, void* waveinfo)
+{
+	if (pcmhandle)
+	{
+		if (waveinfo && infp)
+		{
+			pcmhandle->info = (void*)waveifno;
+			pcmhandle->wave_in = infp;
+		}
+		else if (waveinfo)
+		{
+			pcmhandle->info = (void*)waveifno;
+		}
+		return 0;
+	}
+	return -EINVAL;
+}
+
+int
+readPCM_data(pcm_reader_data* pcmhandle, int toread)
+{
+}
+
+int
+readPCM_data_int(pcm_reader_data* pcmhandle, int toread)
+{
+}
+
+int
+readPCM_data_short(pcm_reader_data* pcmhandle, int toread)
+{
+}
+
+int
+readPCM_data_ieee_float(pcm_reader_data* pcmhandle, int toread)
+{
+}
+
+
+void
+freePcmBuffer (PcmBuffer *pbuf)
+{
+	if (pbuf)
+	{
+		if (pbuf->ch[0]) free (pbuf->ch[0]);
+		if (pbuf->ch[1]) free (pbuf->ch[1]);
+	}
+}
+int
+setPCM_file_position(pcm_reader_data* pcmhandle)
+{
+	int rc = -EINVAL;
+
+	if (pcmhandle)
+	{
+		WAVE_FILE_INFO_T *wfinfo = NULL;
+		winfo = (WAVE_FILE_INFO_T*)pcmhandle->info;
+		if (winfo)
+		{
+			if (!pcmhandle->wave_in)
+			{
+				if (winfo->name)
+				{
+					pcmhandle->wave_in = fopen (winfo->name,"rb");
+				}
+			}
+			if (pcmhandle->wave_in)
+			{
+				rc = fseek(pcmhandle->wave_in, winfo->datainfo.offset,SEEK_SET);
+			}
+		}
 	}
 
-	if (!(wvp = getWaveInfo (fp))) {
-		fclose (fp);
-		return -EINVAL; /* to-do: speicify error code */
-	}
-
-	if (isSupportedWAVEFile(wvp)) {
-		free (wvp);
-		fclose (fp);
-		return -EINVAL; /* to do: specifiy error code */
-	}
-
-	pcmhandle->info = (void*)wvp;
-	pcmhandle->wave_in = fp;
-	return 0;
+	return rc;
 }
