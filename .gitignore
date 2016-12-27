@@ -1,1 +1,3 @@
 *.o
+ext_lib
+.DS_Store

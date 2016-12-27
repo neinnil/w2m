@@ -9,10 +9,14 @@
 #include <pthread.h>
 #include <signal.h>
 
+#include "lame/lame.h"
+
 #include "nein/osa.h"
 #include "nein/wave.h"
+#include "nein/pcm.h"
 #include "workqueue.h"
 #include "jobitem.h"
+#include "getname.h"
 
 #define NIL_DEBUG(fmt, ...) do {			\
 	fprintf(stderr, fmt##__VA_ARGS__);		\
@@ -20,8 +24,11 @@
 
 void showUsage(char *progname){
 	printf ("Usage: %s dir_path \n", progname);
+#if defined (__MINGW32__)
 	printf ("Example: %s F:\\Music \n", progname);
-	printf ("Example: %s /home/nein/wprognamees \n", progname);
+#else
+	printf ("Example: %s /home/nein/wavefiles \n", progname);
+#endif
 }
 
 /** global variables */
@@ -66,20 +73,24 @@ void sighandler(int sno)
 	}
 }
 
-void print_item (workitem_t *wit)
+static void	write_id3_tag (lame_t, FILE * );
+static void print_item (workitem_t *wit)
 {
 	jobitem_t *job = NULL;
+	pcm_reader_data	*pcmhdl = NULL;
 	WAVE_FILE_INFO_T *winfo = NULL;
 	job = (jobitem_t*)(wit->priv);
 	if (job) 
 	{
-		winfo = (WAVE_FILE_INFO_T *)(job->pcmInfo);
+		pcmhdl = (pcm_reader_data*)(job->pcmInfo);
+		if (pcmhdl)
+			winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
 		if (winfo)
 		{
 			printf ("%20p | %20p | %20p | %20p \n",
 					wit->priv, wit, wit->list.prev, wit->list.next);
 			printWaveInfo(winfo);
-			printf ("Is this file supported to convert? %s",
+			printf ("Is this file supported to convert? %s\n",
 					job->isSupported?"YES":"NO");
 		}
 	}
@@ -134,10 +145,13 @@ static void freeJobs (void *p)
 {
 	if (p)
 	{
-		WAVE_FILE_INFO_T *info = (WAVE_FILE_INFO_T*)p;
-		freeWaveInfo (info);
+		pcm_reader_data *data = (pcm_reader_data*)p;
+		freePCM_Reader (data);
 	}
 }
+
+static int writeId3Tag (lame_t, FILE* , unsigned char *);
+static int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo);
 
 /**
   @param  path  wether this path is a diretory or not.
@@ -164,42 +178,241 @@ static int isDirectory(const char *path, DIR** ppdir)
 	return 0;
 }
 
+#define DEF_NSAMPLE	1152
+#define DEF_BUF_SIZE	(2*DEF_NSAMPLE)
+
 void * nilWorks (void *arg) 
 {
 	int bForcedQuit = 0;
-	workqueue_t	*wqueue = NULL;
-	workitem_t *work = NULL;
-	jobitem_t  *job = NULL;
-	while (!bQuit) {
+	workqueue_t		*wqueue = NULL;
+	workitem_t		*work = NULL;
+	jobitem_t		*job = NULL;
+	lame_t			lame_gfp = NULL;
+	int				is_lame_initialized = 0;
+	unsigned char	*mp3buffer = NULL;
+	PcmBuffer		pcm16 = {0, };
+	PcmBuffer		pcm32 = {0, };
+	PcmBuffer		pcmfloat = {0, };
+	PcmBuffer		pcmdouble = {0, };
+
+	initPcmBuffer (&pcm16, DEF_NSAMPLE, sizeof(int16_t));
+	initPcmBuffer (&pcm32, DEF_NSAMPLE, sizeof(int32_t));
+	initPcmBuffer (&pcmfloat, DEF_NSAMPLE, sizeof(float));
+	initPcmBuffer (&pcmdouble, DEF_NSAMPLE, sizeof(double));
+
+	while (!bQuit) 
+	{
 		pthread_mutex_lock (&gMutex);
 		pthread_cond_wait (&gCond, &gMutex);
 		pthread_mutex_unlock (&gMutex);
-		do {
+		if (!lame_gfp)
+		{
+			lame_gfp = lame_init();
+			if (!lame_gfp)
+			{
+				fprintf(stderr,"lame_init: error.\n");
+				break;
+			}
+			if (!mp3buffer) 
+			{
+				mp3buffer = (unsigned char *)malloc (LAME_MAXMP3BUFFER);
+				if (!mp3buffer)
+				{
+					fprintf (stderr, "mp3buffer: allocation failed.\n");
+					break;
+				}
+			}
+		}
+
+		do
+		{
 			if (bQuit) {
 				break;
 			}
 			work = popWorkFromFree(workQueue);
-			if (work) {
+			if (work) 
+			{
+				WAVE_FILE_INFO_T *wfinfo = NULL;
+				pcm_reader_data	 *pcmhdl = NULL;
 				addItem2Doing(workQueue, work);
 				job = (jobitem_t*)(work->priv);
-				printf ("working jobs : %s\n", job->src);
+				printf ("[%d] working jobs : %s\n", pthread_self(),job->src);
 				set_state (job, WORK_DOING);
 				/* check pcm header */
 				/* if this file is pcm file and supported in this program 
 				   then working */
+				if (NULL!=(wfinfo = getWaveInfoFromFile (job->src))) 
 				{
-					WAVE_FILE_INFO_T *wfinfo = NULL;
-					if (NULL!=(wfinfo = getWaveInfoFromFile (job->src))) {
-						job->isSupported = isSupportedWAVEFile(wfinfo);
-						setPcmData (job, (void*)wfinfo);
+					FILE *outfp = NULL;
+					int		channels = 0;
+					int		samples_per_sec = 0;
+					unsigned long	num_samples = 0;
+					long	data_length = 0;
+					int		bits_per_sample = 0;
+					uint16_t	formatTag = 0;
+
+					initPCM_Reader (&pcmhdl, EXT_PCM_BUFFER);
+					resetPcmBuffer (&pcm16);
+					resetPcmBuffer (&pcm32);
+					resetPcmBuffer (&pcmfloat);
+					resetPcmBuffer (&pcmdouble);
+					setPCM_PcmBuffer (pcmhdl, &pcm16, &pcm32, &pcmfloat, &pcmdouble);
+
+					job->isSupported = isSupportedWAVEFile(wfinfo);
+
+					if (job->isSupported)
+					{
+						int nread = 0;
+						int imp3 = 0;
+						int nwrite = 0;
+						int rc = 0;
+
+						setPcmData (job, (void*)pcmhdl);
+						setPCM_FromWaveInfo (pcmhdl, NULL, (void*)wfinfo);
+
+						formatTag = getWAVEFormatTag (wfinfo);
+						job->dst = get_suggested_filename (job->src, NULL);
+						printf ("Src[%s] --> Dst[%s]\n", job->src, job->dst);
+						outfp = fopen (job->dst, "w");
+						setSupportedFlag (job, SUPPORTED_FILE);
+						setPCM_file_position (pcmhdl);
+						bits_per_sample = getWAVEBitsPerSample (wfinfo);
+
+						id3tag_init(lame_gfp);
+						lame_set_findReplayGain(lame_gfp, 1);
+
+						if (-1 == setup_lame_config (lame_gfp, wfinfo))
+						{
+							job->isSupported = 0;
+							goto routine_not_supported;
+						}
+
+						lame_set_quality (lame_gfp, 2);
+
+						lame_set_write_id3tag_automatic(lame_gfp, 0);
+
+						if (is_lame_initialized)
+						{
+							rc = lame_init_bitstream (lame_gfp);
+							if (rc < 0)
+							{
+								fprintf(stderr,"lame_init_bitstream failed.\n");
+								job->isSupported = 0;
+								goto routine_not_supported;
+							}
+						}
+						else
+						{
+							rc = lame_init_params(lame_gfp);
+							if (rc <0)
+							{
+								fprintf(stderr,"lame_init_params failed.\n");
+								job->isSupported = 0;
+								goto routine_not_supported;
+							}
+							is_lame_initialized = 1;
+						}
+						/* write id3 tag */
+						write_id3_tag (lame_gfp, outfp);
+
+						while (!bQuit)
+						{
+							int	to_read_samples = 0;
+							int	remainSamples = pcmhdl->numOfSamples - pcmhdl->num_samples_read;
+							to_read_samples = (remainSamples>DEF_NSAMPLE)?DEF_NSAMPLE:remainSamples;
+							nread = readPCM_data(pcmhdl, to_read_samples);
+							if (nread <=0) {
+								break;
+							}
+							if (bits_per_sample <= 16)
+							{
+								short *ch[2];
+								ch[0] = (short*)(pcmhdl->pcm16->ch[0]);
+								ch[1] = (short*)(pcmhdl->pcm16->ch[1]);
+								imp3 = lame_encode_buffer(lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER);
+							}
+							else if (bits_per_sample > 16)
+							{
+								if(formatTag == WAVE_FORMAT_PCM)
+								{
+									int *ch[2];
+									ch[0] = (int*)(pcmhdl->pcm32->ch[0]);
+									ch[1] = (int*)(pcmhdl->pcm32->ch[1]);
+									imp3 = lame_encode_buffer_int (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER);
+								}
+								else if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
+								{
+									if (bits_per_sample == 32)
+									{
+										float *ch[2];
+										ch[0] = (float*)(pcmhdl->pcmfloat->ch[0]);
+										ch[1] = (float*)(pcmhdl->pcmfloat->ch[1]);
+										imp3 = lame_encode_buffer_ieee_float (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
+									}
+									else if (bits_per_sample == 64)
+									{
+										double *ch[2];
+										ch[0] = (double*)(pcmhdl->pcmdouble->ch[0]);
+										ch[1] = (double*)(pcmhdl->pcmdouble->ch[1]);
+										imp3 = lame_encode_buffer_ieee_double (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
+									}
+								}
+								else 
+								{
+									goto routine_not_supported;
+								}
+							}
+							/***
+							else if (bits_per_sample > 32)
+							{
+								job->isSupported = 0;
+								goto routine_not_supported;
+							}
+							***/
+							else
+							{
+								job->isSupported = 0;
+								goto routine_not_supported;
+							}
+
+							pcmhdl->num_samples_read += nread;
+
+							if (imp3<0) 
+							{
+								job->isSupported = 0;
+								goto routine_not_supported;
+							}
+							/* write encoded buffer to output file */
+							nwrite = fwrite (mp3buffer, 1, imp3, outfp);
+						}
+						/* lame_encode_flush */
+						imp3 = lame_encode_flush(lame_gfp, mp3buffer, LAME_MAXMP3BUFFER);
+						if (imp3>0) 
+						{
+							/* write flushing data to output file */
+							(void)fwrite (mp3buffer, 1, imp3, outfp);
+						}
+						fflush (outfp);
+						/* close output file */
+routine_not_supported:
+						if (outfp)
+						{
+							fclose (outfp);
+							outfp = NULL;
+						}
+						if (!job->isSupported)
+						{
+							unlink (job->dst);
+						}
 					}
 				}
-				setSupportedFlag (job, SUPPORTED_FILE);
+
 				set_state (job, WORK_DONE);
 				addItem2Done(workQueue, work);
 			}
 		} while (work);
 	}
+	if (lame_gfp) lame_close (lame_gfp);
 	return (void*)0;
 }
 
@@ -212,10 +425,10 @@ static int createTasks (int numCores)
 		initTask (&task);
 		task->onCore = (limitTasks%numCores);
 		task->work_run = nilWorks;
-		addTask2TaskMgm (taskmanager, task);
 		if (0>(rc=createTask (task))){
 			printf ("createTask returns %d\n", rc);
 		}
+		addTask2TaskMgm (taskmanager, task);
 	}
 	return 0;
 }
@@ -240,6 +453,13 @@ void gatheringData (const char *fpath)
 		free_jobitem (job);
 		return;
 	}
+#if 0
+	if (0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone))
+	{
+		if (nTotal%numOfCores)
+			return ;
+	}
+#endif	
 	pthread_mutex_lock(&gMutex);
 	pthread_cond_signal(&gCond);
 	pthread_mutex_unlock(&gMutex);
@@ -285,12 +505,15 @@ int main (int ac, char **av)
 	printf ("--af initializing task manager. \n");
 	getNumOfCores(&numOfCores);
 	printf ("--af %d cores. \n", numOfCores);
-	createTasks (numOfCores);
+	createTasks(numOfCores);
 	printf ("--af creating task.. \n");
 
 	lookingdir = (char*)*(av+1);
 	printf ("looking for files in %s\n", lookingdir);
 	walkThDir (lookingdir, gatheringData);
+	pthread_mutex_lock(&gMutex);
+	pthread_cond_signal(&gCond);
+	pthread_mutex_unlock(&gMutex);
 	doneCrawing = 1;
 	waitAllTasks (taskmanager);
 
@@ -299,4 +522,65 @@ int main (int ac, char **av)
 	destroy_wq (&workQueue);
 	destroy_TaskManager(&taskmanager);
 	return 0;
+}
+
+int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo)
+{
+	int channels = 0;
+	int sampleRate =  0;
+	unsigned long num_samples = 0;
+	long	data_length = 0;
+	int		bits_per_sample = 0;
+	unsigned long samples_per_sec = 0;
+	unsigned long nSamples = 0;
+
+	/* set number of channels */
+	channels = (int)getWAVEChannels(wfinfo);
+	if (-1 == lame_set_num_channels (gfp, channels))
+	{
+		printf ("lame_set_num_channels return -1, (%d)\n", channels);
+		return -1;
+	}
+	printf ("channels %d, %d\n", channels, lame_get_num_channels(gfp));
+
+	/* set sample rate */
+	samples_per_sec = (unsigned long)getWAVESampleRate (wfinfo);
+	if (-1 == lame_set_in_samplerate (gfp, samples_per_sec))
+	{
+		printf ("lame_set_in_samplerate -1 (%lu)\n", samples_per_sec);
+		return -1;
+	}
+	printf ("samples/sec %lu, %d\n", samples_per_sec
+			, lame_get_in_samplerate(gfp));
+
+	/* set number of samples */
+	data_length = getWAVEDataLength (wfinfo);
+	if (data_length > 0 && data_length%2)
+	{
+		data_length += 1;
+	}
+	printf ("Data length: %d\n", data_length);
+	bits_per_sample = getWAVEBitsPerSample (wfinfo);
+	num_samples = (unsigned long)(data_length/(channels*((bits_per_sample + 7)/8)));
+	lame_set_num_samples (gfp, num_samples);
+
+	return 0;
+}
+void
+write_id3_tag (lame_t gfp, FILE *outfp)
+{
+	unsigned char mp3buffer[LAME_MAXMP3BUFFER];
+	size_t	id3v2_size;
+	int		imp3;
+	id3v2_size = lame_get_id3v2_tag (gfp, 0, 0);
+	if (id3v2_size > 0)
+	{
+		unsigned char *id3v2tag = malloc (id3v2_size);
+		if (id3v2tag)
+		{
+			imp3 = lame_get_id3v2_tag (gfp, id3v2tag, id3v2_size);
+			(void)fwrite (id3v2tag, 1, imp3, outfp);
+			free (id3v2tag);
+		}
+	}
 }

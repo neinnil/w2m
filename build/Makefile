@@ -5,9 +5,13 @@ TOP_DIR ?= $(PWD)/..
 CC=gcc
 
 INCDIR=$(TOP_DIR)/include
+EXTINC=$(TOP_DIR)/ext_lib/include
+
 CFLAGS += -I$(INCDIR)
+CFLAGS += -I$(EXTINC)
 CFLAGS += -I$(TOP_DIR)/src
 CFLAGS += -g
+LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -lmp3lame
 LDFLAGS += -lpthread
 
 VPATH += $(TOP_DIR)/src
@@ -21,6 +25,7 @@ SRCS += osa.c
 
 VPATH += $(TOP_DIR)/src/wave
 SRCS += wave.c
+SRCS += pcm.c
 
 VPATH += $(TOP_DIR)/src/utils
 SRCS += clinkedlist.c
@@ -33,7 +38,7 @@ UTILS = winfo wqtest cltest
 
 all: w2m $(UTILS)
 
-w2m: w2m.o jobitem.o workqueue.o clinkedlist.o getname.o osa.o wave.o
+w2m: w2m.o jobitem.o workqueue.o clinkedlist.o getname.o osa.o pcm.o wave.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 winfo: winfo.o wave.o

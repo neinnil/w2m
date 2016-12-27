@@ -54,10 +54,12 @@ static char * get_extension(char *filename)
 
 char * get_suggested_filename (char *src, char *dst_ext)
 {
-	char *tmp = NULL;
-	char *base = NULL;
-	char *dir_name = NULL;
-	char *ext = NULL;
+	char	*tmp = NULL;
+	char	*base = NULL;
+	char	bname[FILENAME_MAX];
+	char	*dir_name = NULL;
+	char	dname[FILENAME_MAX];
+	char	*ext = NULL;
 	int		len = FILENAME_MAX;
 	if (!src) {
 		printf("[%s] Invalid argument.\n", __FUNCTION__);
@@ -65,8 +67,8 @@ char * get_suggested_filename (char *src, char *dst_ext)
 	}
 	if (!dst_ext)
 		dst_ext = dfl_ext;
-	base = basename(src);
-	dir_name = dirname (src);
+	base = basename_r(src, bname);
+	dir_name = dirname_r (src, dname);
 	ext = get_extension(src);
 	printf ("Dirname: %s\n", dir_name);
 	printf ("Basename: %s\n", base);

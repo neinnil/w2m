@@ -225,11 +225,14 @@ extern void		freeWaveInfo (WAVE_FILE_INFO_T *info);
 
 extern int	 isSupportedWAVEFile(WAVE_FILE_INFO_T* waveinfo);
 extern uint16_t getWAVEFormatTag(WAVE_FILE_INFO_T* waveinfo);
+extern uint16_t getWAVEFormatTag_Orig(WAVE_FILE_INFO_T* waveinfo);
 extern short getWAVEChannels(WAVE_FILE_INFO_T* waveinfo);
 extern int	 getWAVESampleRate(WAVE_FILE_INFO_T* waveinfo);
 extern short getWAVEBitsPerSample(WAVE_FILE_INFO_T* waveinfo);
-extern int	 getWAVEDataLength (WAVE_FILE_INFO_T*	waveinfo);
-extern long  getWAVEDataOffset (WAVE_FILE_INFO_T*	waveinfo);
+extern short getWAVEValidBitsPerSample(WAVE_FILE_INFO_T* waveinfo);
+extern int	 getWAVEDataLength (WAVE_FILE_INFO_T* waveinfo);
+extern long  getWAVEDataOffset (WAVE_FILE_INFO_T* waveinfo);
+extern int	 getWAVEBlockAlign (WAVE_FILE_INFO_T* waveinfo);
 
 //extern int	 isWAVE_IEEE_FLOAT(WAVE_FILE_INFO_T *waveinfo);
 //extern int	 isWAVE_EIGHTBITSTREAM(WAVE_FILE_INFO_T *waveinfo);

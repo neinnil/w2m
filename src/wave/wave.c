@@ -37,6 +37,7 @@ allocWAVE_BASE(void)
 static long getFileLength (FILE *fp);
 static int  readRIFFHeader (FILE *fp, WAVE_HEADER_T *riff);
 static int	readNextChunk (FILE *fp, CHUNK_T *chunk);
+static void printChunk(CHUNK_T *chk);
 
 WAVE_FILE_INFO_T*
 getWaveInfoFromFile (const char* file)
@@ -75,7 +76,6 @@ getWaveInfo (FILE* infp)
 	}
 	if (!(pOut=allocWAVE_BASE())){
 		fprintf(stderr,"Fail to allocate WAVE_FILE_INFO_T.\n");
-		fclose (infp);
 		return NULL;
 	}
 
@@ -163,12 +163,16 @@ not_wave_file:
 0: not supported 
  */
 int
-isSupportedWAVEFile (WAVE_FILE_INFO_T* wavefile)
+isSupportedWAVEFile (WAVE_FILE_INFO_T* wfinfo)
 {
-	if (wavefile) {
+	if (wfinfo) {
+		uint16_t	fmtTag = getWAVEFormatTag (wfinfo);
 		/* WAVE_FORMAT_PCM || WAVE_FORMAT_IEEE_FLOAT */
-		if (WAVE_FORMAT_PCM == getWAVEFormatTag(wavefile)) {
-			return 1;
+		if (WAVE_FORMAT_PCM == fmtTag 
+			|| WAVE_FORMAT_IEEE_FLOAT == fmtTag) {
+			short nch = getWAVEChannels (wfinfo);
+			if (nch == 1 || nch == 2)
+				return 1;
 		}
 	}
 	return 0;
@@ -177,13 +181,13 @@ isSupportedWAVEFile (WAVE_FILE_INFO_T* wavefile)
 #define WAVEINFO(type,x) ((type *)&((x)->waveInfo))
 
 uint16_t
-getWAVEFormatTag (WAVE_FILE_INFO_T* wavefile)
+getWAVEFormatTag (WAVE_FILE_INFO_T* wfinfo)
 {
-	if (wavefile){
-		uint16_t fmtTag = ((WAVE_PCM_T*)&(wavefile->waveInfo))->fmtTag;
+	if (wfinfo){
+		uint16_t fmtTag = ((WAVE_PCM_T*)&(wfinfo->waveInfo))->fmtTag;
 		if (fmtTag == WAVE_FORMAT_EXTENSIBLE) {
-			WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)&(wavefile->waveInfo);
-			if (extfmt->cbSize == 22) {
+			WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)&(wfinfo->waveInfo);
+			if (extfmt->fmtTag == WAVE_FORMAT_EXTENSIBLE && extfmt->cbSize == 22) {
 				guid_struct *pguid = (guid_struct*)extfmt->subformat;
 				fmtTag = (uint16_t)pguid->data.data1;
 			}
@@ -193,54 +197,112 @@ getWAVEFormatTag (WAVE_FILE_INFO_T* wavefile)
 	return -EINVAL;
 }
 
-short
-getWAVEChannels (WAVE_FILE_INFO_T* wavefile)
+uint16_t
+getWAVEFormatTag_Orig (WAVE_FILE_INFO_T* wfinfo)
 {
-	short nChannels = 0;
-	if (!wavefile){
-		return -EINVAL;
-	}
-	nChannels = ((WAVE_PCM_T*)&wavefile->waveInfo)->nChannels;
-	return nChannels;
-}
-
-int
-getWAVESampleRate (WAVE_FILE_INFO_T* wavefile)
-{
-	if (wavefile){
-		return ((WAVE_PCM_T*)&wavefile->waveInfo)->nSamplePerSec;
+	if (wfinfo)
+	{
+		uint16_t fmtTag = ((WAVE_PCM_T*)&(wfinfo->waveInfo))->fmtTag;
+		return fmtTag;
 	}
 	return -EINVAL;
 }
 
-
 short
-getWAVEBitsPerSample (WAVE_FILE_INFO_T* wavefile)
+getWAVEChannels (WAVE_FILE_INFO_T* wfinfo)
 {
-	short bitpersample = 0;
-	if (!wavefile){
+	short nChannels = 0;
+	if (!wfinfo){
 		return -EINVAL;
 	}
-	if (WAVE_PCM_TYPE == wavefile->waveType){
-		bitpersample = ((WAVE_PCM_T*)&(wavefile->waveInfo))->wBitsPerSample;
-	} else if (WAVE_NON_PCM_TYPE == wavefile->waveType) {
-		bitpersample = ((WAVE_NON_PCM_T*)&(wavefile->waveInfo))->wBitsPerSample;
-	} else if (WAVE_EXT_FMT_TYPE == wavefile->waveType) {
-		bitpersample = ((WAVE_EXT_FMT_T*)&(wavefile->waveInfo))->wBitsPerSample;
-		if (bitpersample == 0) {
-			bitpersample = ((WAVE_EXT_FMT_T*)&wavefile->waveInfo)->Samples.wSamplesPerBlock;
+	nChannels = ((WAVE_PCM_T*)&wfinfo->waveInfo)->nChannels;
+	return nChannels;
+}
+
+int
+getWAVESampleRate (WAVE_FILE_INFO_T* wfinfo)
+{
+	if (wfinfo)
+	{
+		return ((WAVE_PCM_T*)&wfinfo->waveInfo)->nSamplePerSec;
+	}
+	return -EINVAL;
+}
+
+int
+getWAVEBlockAlign (WAVE_FILE_INFO_T* wfinfo)
+{
+	if (wfinfo)
+	{
+		return (int)(((WAVE_PCM_T*)&wfinfo->waveInfo)->nBlockAlign);
+	}
+	return -EINVAL;
+}
+
+short
+getWAVEBitsPerSample (WAVE_FILE_INFO_T* wfinfo)
+{
+	short bitspersample = 0;
+	if (!wfinfo){
+		return -EINVAL;
+	}
+	if (WAVE_PCM_TYPE == wfinfo->waveType){
+		bitspersample = ((WAVE_PCM_T*)&(wfinfo->waveInfo))->wBitsPerSample;
+	} else if (WAVE_NON_PCM_TYPE == wfinfo->waveType) {
+		bitspersample = ((WAVE_NON_PCM_T*)&(wfinfo->waveInfo))->wBitsPerSample;
+	} else if (WAVE_EXT_FMT_TYPE == wfinfo->waveType) {
+		bitspersample = ((WAVE_EXT_FMT_T*)&(wfinfo->waveInfo))->wBitsPerSample;
+		if (bitspersample == 0) {
+			bitspersample = ((WAVE_EXT_FMT_T*)&wfinfo->waveInfo)->Samples.wSamplesPerBlock;
 		}
 	} else {
-		fprintf(stderr,"Not supported wave file format.\n");
+		fprintf(stderr,"%s:%d Not supported wave file format.\n", __FILE__, __LINE__);
 	}
-	return bitpersample;
+	return bitspersample;
+}
+
+short
+getWAVEValidBitsPerSample (WAVE_FILE_INFO_T* wfinfo)
+{
+	short bitspersample = -1;
+	if (!wfinfo)
+	{
+		return -EINVAL;
+	}
+
+	if (WAVE_PCM_TYPE == wfinfo->waveType)
+	{
+		bitspersample = ((WAVE_PCM_T*)&(wfinfo->waveInfo))->wBitsPerSample;
+	} 
+	else if (WAVE_NON_PCM_TYPE == wfinfo->waveType)
+	{
+		bitspersample = ((WAVE_NON_PCM_T*)&(wfinfo->waveInfo))->wBitsPerSample;
+	}
+	else if (WAVE_EXT_FMT_TYPE == wfinfo->waveType)
+	{
+		short validBitsPerSample = 0;
+		WAVE_EXT_FMT_T *extfmt = (WAVE_EXT_FMT_T*)&(wfinfo->waveInfo);
+		bitspersample = extfmt->wBitsPerSample;
+		if (extfmt->fmtTag == WAVE_FORMAT_EXTENSIBLE && extfmt->cbSize == 22) {
+			validBitsPerSample = extfmt->Samples.wValidBitsPerSample;
+		}
+		if (bitspersample != validBitsPerSample)
+		{
+			bitspersample = validBitsPerSample;
+		}
+	}
+	else
+	{
+		fprintf(stderr,"%s:%d Not supported wave file format.\n", __FILE__, __LINE__);
+	}
+	return bitspersample;
 }
 
 int 
-getWAVEDataLength (WAVE_FILE_INFO_T *wavefile)
+getWAVEDataLength (WAVE_FILE_INFO_T *wfinfo)
 {
-	if (wavefile){
-		return wavefile->datainfo.data.chk_size;
+	if (wfinfo){
+		return wfinfo->datainfo.data.chk_size;
 	}
 	return -EINVAL;
 }
@@ -263,12 +325,6 @@ freeWaveInfo (WAVE_FILE_INFO_T *info)
 		if (info->name) free(info->name);
 		free (info);
 	}
-}
-
-static void printChunk(CHUNK_T *chk)
-{
-	printf ("ID: [%4.4s] (0x%x), Length: %d\n",
-			chk->CHKIDS, chk->CHKID, chk->chk_size );
 }
 
 long getFileLength (FILE *fp)
@@ -444,3 +500,11 @@ printWaveInfo(WAVE_FILE_INFO_T *info)
 	}
 	return ;
 }
+
+void
+printChunk(CHUNK_T *chk)
+{
+	printf ("ID: [%4.4s] (0x%x), Length: %d\n",
+			chk->CHKIDS, chk->CHKID, chk->chk_size );
+}
+

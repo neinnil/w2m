@@ -39,22 +39,33 @@ typedef struct _PcmBuffer PcmBuffer;
 
 typedef struct _PCM_READER_DATA_T
 {
-	int				count_samples;
-	int				pcmbitwidth;
-	int				pcmswapbytes;
-	int				pcm_is_unsigned_8bit;
-	int				pcm_is_ieee_float;
-	unsigned int	num_smaples_read;
+	short			nChannels;
+	uint32_t		sampleRate;
+	uint32_t		datalength;
+	int				bitspersample;
+	int				blockAlign;
+	int				validBitsPerSample;
+	int				validBitsMask;
+	int				swapbytes;
+	int				is_unsigned_8bit;
+	int				is_ieee_float;
+	int				numOfSamples;
+	unsigned int	num_samples_read;
+	//int				count_samples;
 	FILE*			wave_in;
-	PcmBuffer		pcm32;
-	PcmBuffer		pcm16;
-	PcmBuffer		pcmfloat;
+	int				useExtBuffer;
+#define EXT_PCM_BUFFER	0x01
+#define EXT_WAVE_INFO	0x02
+	PcmBuffer		*pcm32;
+	PcmBuffer		*pcm16;
+	PcmBuffer		*pcmfloat;
+	PcmBuffer		*pcmdouble;
 	size_t			in_id3v2_size;
 	unsigned char*	in_id3v2_tag;
 	void*			info; /* pointer to WAVE_FILE_INFO_T */
 } pcm_reader_data;
 
-extern int initPCM_Reader(pcm_reader_data **pcmhandle);
+extern int initPCM_Reader(pcm_reader_data **pcmhandle, int useExtBuffer);
 extern void freePCM_Reader(pcm_reader_data *pcmhandle);
 extern int setPCM_OpenWaveFile(pcm_reader_data *pcmhandle, const char *file);
 extern int setPCM_WaveFile(pcm_reader_data *pcmhandle, FILE *infp);
@@ -62,10 +73,17 @@ extern int setPCM_FromWaveInfo(pcm_reader_data* pcmhandle, FILE *infp, void* wav
 
 extern int setPCM_file_position(pcm_reader_data* pcmhandle);
 
+extern int setPCM_PcmBuffer (pcm_reader_data *pcmhandle, PcmBuffer *pcm16, PcmBuffer *pcm32, PcmBuffer *pcmfloat, PcmBuffer *pcmdouble);
 extern int readPCM_data(pcm_reader_data* pcmhandle, int toread);
 extern int readPCM_data_int(pcm_reader_data* pcmhandle, int toread);
+extern int readPCM_data_uint8(pcm_reader_data* pcmhandle, int toread);
 extern int readPCM_data_short(pcm_reader_data* pcmhandle, int toread);
 extern int readPCM_data_ieee_float(pcm_reader_data* pcmhandle, int toread);
+extern int readPCM_data_ieee_double(pcm_reader_data* pcmhandle, int toread);
+
+extern int	initPcmBuffer (PcmBuffer *pbuf, int nSamples, int nSize);
+extern void freePcmBuffer (PcmBuffer *pbuf);
+extern void	resetPcmBuffer (PcmBuffer *pbuf);
 
 	
 #ifdef __cplusplus
