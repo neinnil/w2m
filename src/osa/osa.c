@@ -365,7 +365,7 @@ int waitAllTasks(nil_task_mgm_t *mgm)
 	task = mgm->nextTask(mgm);
 	while (task) {
 		rc = pthread_join(task->tid, NULL);
-		printf ("pthread_join returns %d\n", rc);
+//		printf ("pthread_join returns %d\n", rc);
 		task = mgm->nextTask(mgm);
 	}
 	return 0;
