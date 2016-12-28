@@ -505,7 +505,6 @@ setPCM_PcmBuffer (pcm_reader_data *pcmhdl, PcmBuffer *pcm16, PcmBuffer *pcm32, P
 	{
 		if (pcmhdl->useExtBuffer & EXT_PCM_BUFFER)
 		{
-			fprintf(stderr,"%s:%d\n", __FILE__,__LINE__);
 			pcmhdl->pcm16 = pcm16;
 			pcmhdl->pcm32 = pcm32;
 			pcmhdl->pcmfloat = pcmfloat;
@@ -522,13 +521,16 @@ int	_setPCM_info_from_wavefileinfo(pcm_reader_data *pcmhdl)
 	if (pcmhdl && pcmhdl->info)
 	{
 		WAVE_FILE_INFO_T	*wfinfo = (WAVE_FILE_INFO_T*)pcmhdl->info;
-		pcmhdl->bitspersample = getWAVEBitsPerSample(wfinfo);
 		pcmhdl->num_samples_read = 0;
+		pcmhdl->bitspersample = getWAVEBitsPerSample(wfinfo);
 		pcmhdl->nChannels = getWAVEChannels(wfinfo);
 		pcmhdl->sampleRate = getWAVESampleRate(wfinfo);
 		pcmhdl->datalength = getWAVEDataLength (wfinfo);
-		pcmhdl->numOfSamples = 
-			pcmhdl->datalength/(pcmhdl->nChannels*((pcmhdl->bitspersample+7)/8));
+		if (pcmhdl->nChannels && pcmhdl->bitspersample)
+		{
+			pcmhdl->numOfSamples = 
+				pcmhdl->datalength/(pcmhdl->nChannels*((pcmhdl->bitspersample+7)/8));
+		}
 		pcmhdl->blockAlign = getWAVEBlockAlign (wfinfo);
 		if (WAVE_FORMAT_IEEE_FLOAT == getWAVEFormatTag(wfinfo))
 		{
