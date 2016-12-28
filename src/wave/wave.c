@@ -103,7 +103,8 @@ getWaveInfo (FILE* infp)
 				}
 				if (!strncmp((const char*)chk.CHKIDS, "fmt ", 4))
 				{
-					unsigned char buffer[64] = {0, };
+					unsigned char buffer[256] = {0, };
+					if (skip_or_read > 256) skip_or_read = 256;
 					rc = fread (buffer, 1, (size_t)skip_or_read, infp);
 					if (rc == skip_or_read)
 					{
@@ -119,6 +120,8 @@ getWaveInfo (FILE* infp)
 							pOut->waveType = WAVE_NON_PCM_TYPE;
 						else if (chk.chk_size == 40)
 							pOut->waveType = WAVE_EXT_FMT_TYPE;
+						else
+							pOut->waveType = 0;
 					} 
 					else
 					{
