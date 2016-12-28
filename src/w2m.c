@@ -259,7 +259,11 @@ void * nilWorks (void *arg)
 					resetPcmBuffer (&pcm32);
 					resetPcmBuffer (&pcmfloat);
 					resetPcmBuffer (&pcmdouble);
+
 					setPCM_PcmBuffer (pcmhdl, &pcm16, &pcm32, &pcmfloat, &pcmdouble);
+
+					setPcmData (job, (void*)pcmhdl);
+					setPCM_FromWaveInfo (pcmhdl, NULL, (void*)wfinfo);
 
 					job->isSupported = isSupportedWAVEFile(wfinfo);
 
@@ -269,9 +273,6 @@ void * nilWorks (void *arg)
 						int imp3 = 0;
 						int nwrite = 0;
 						int rc = 0;
-
-						setPcmData (job, (void*)pcmhdl);
-						setPCM_FromWaveInfo (pcmhdl, NULL, (void*)wfinfo);
 
 						formatTag = getWAVEFormatTag (wfinfo);
 						job->dst = get_suggested_filename (job->src, NULL);
@@ -291,6 +292,7 @@ void * nilWorks (void *arg)
 						}
 
 						lame_set_quality (lame_gfp, 2);
+						printf ("MPEG_mode: %d\n", lame_get_mode(lame_gfp));
 
 						lame_set_write_id3tag_automatic(lame_gfp, 0);
 
@@ -559,6 +561,10 @@ int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo)
 	}
 	printf ("samples/sec %lu, %d\n", samples_per_sec
 			, lame_get_in_samplerate(gfp));
+	if (samples_per_sec < 16000)
+	{
+		(void)lame_set_out_samplerate(gfp, 16000);
+	}
 
 	/* set number of samples */
 	data_length = getWAVEDataLength (wfinfo);
