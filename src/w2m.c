@@ -82,6 +82,10 @@ static void print_item (workitem_t *wit)
 	job = (jobitem_t*)(wit->priv);
 	if (job) 
 	{
+		printf ("File: %s\n", job->src?job->src:"");
+		printf ("Dst:  %s\n", job->dst?job->dst:"");
+		printf ("Is this file supported to convert? %s\n",
+				job->isSupported?"YES":"NO");
 		pcmhdl = (pcm_reader_data*)(job->pcmInfo);
 		if (pcmhdl)
 			winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
@@ -90,8 +94,6 @@ static void print_item (workitem_t *wit)
 			printf ("%20p | %20p | %20p | %20p \n",
 					wit->priv, wit, wit->list.prev, wit->list.next);
 			printWaveInfo(winfo);
-			printf ("Is this file supported to convert? %s\n",
-					job->isSupported?"YES":"NO");
 		}
 	}
 }
@@ -238,6 +240,7 @@ void * nilWorks (void *arg)
 				job = (jobitem_t*)(work->priv);
 				printf ("[%p] working jobs : %s\n", pthread_self(),job->src);
 				set_state (job, WORK_DOING);
+				job->isSupported =0;
 				/* check pcm header */
 				/* if this file is pcm file and supported in this program 
 				   then working */

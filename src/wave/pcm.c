@@ -281,12 +281,12 @@ readPCM_data_int(pcm_reader_data* pcmhdl, int toread)
 	int	*pch[2];
 	int	i;
 
-	int nread = (DEF_READ_NSAMPLE)>toread?toread:(DEF_READ_NSAMPLE);
+	int nread = (DEF_READ_NSAMPLE>toread)?toread:DEF_READ_NSAMPLE;
 
 	if (!pcmhdl || pcmhdl->nChannels < 1 || pcmhdl->nChannels > 2)
 		return -1;
-	//nread *= (pcmhdl->nChannels * ((pcmhdl->bitspersample + 7)/8));
-	nread *= pcmhdl->blockAlign;
+	nread *= (pcmhdl->nChannels * ((pcmhdl->bitspersample + 7)/8));
+	//nread *= pcmhdl->blockAlign;
 	nread = fread (buffer, 1, nread, pcmhdl->wave_in);
 
 	if (nread <= 0)
@@ -295,16 +295,16 @@ readPCM_data_int(pcm_reader_data* pcmhdl, int toread)
 	pch[0] = (int*)(pcmhdl->pcm32->ch[0]);
 	pch[1] = (int*)(pcmhdl->pcm32->ch[1]);
 
+	nread /= (pcmhdl->nChannels * ((pcmhdl->bitspersample + 7)/8));
 	if (24 == pcmhdl->bitspersample)
 	{
 		int24_t	*tmp = (int24_t*)buffer;
-		nread /= pcmhdl->blockAlign;
 		if (2 == pcmhdl->nChannels)
 		{
 			for (i=0; i<nread; i++)
 			{
 				pch[0][i] = (*(int*)(tmp+2*i)) << 8;
-				pch[1][i] = (*(int*)(tmp+2*1+1)) << 8;
+				pch[1][i] = (*(int*)(tmp+2*i+1)) << 8;
 			}
 		}
 		else if (1 == pcmhdl->nChannels)
@@ -320,11 +320,10 @@ readPCM_data_int(pcm_reader_data* pcmhdl, int toread)
 		int *pbuf = (int*)buffer;
 		if (2 == pcmhdl->nChannels)
 		{
-			nread /= pcmhdl->blockAlign;
 			for (i=0; i<nread; i++)
 			{
-				pch[0][i] = buffer[2*i];
-				pch[1][i] = buffer[2*i + 1];
+				pch[0][i] = pbuf[2*i];
+				pch[1][i] = pbuf[2*i + 1];
 			}
 		}
 		else if (1 == pcmhdl->nChannels)
