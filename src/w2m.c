@@ -236,7 +236,7 @@ void * nilWorks (void *arg)
 				pcm_reader_data	 *pcmhdl = NULL;
 				addItem2Doing(workQueue, work);
 				job = (jobitem_t*)(work->priv);
-				printf ("[%d] working jobs : %s\n", pthread_self(),job->src);
+				printf ("[%p] working jobs : %s\n", pthread_self(),job->src);
 				set_state (job, WORK_DOING);
 				/* check pcm header */
 				/* if this file is pcm file and supported in this program 
@@ -412,6 +412,10 @@ routine_not_supported:
 			}
 		} while (work);
 	}
+	freePcmBuffer (&pcm16);
+	freePcmBuffer (&pcm32);
+	freePcmBuffer (&pcmfloat);
+	freePcmBuffer (&pcmdouble);
 	if (lame_gfp) lame_close (lame_gfp);
 	return (void*)0;
 }
@@ -559,7 +563,7 @@ int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo)
 	{
 		data_length += 1;
 	}
-	printf ("Data length: %d\n", data_length);
+	printf ("Data length: %ld\n", data_length);
 	bits_per_sample = getWAVEBitsPerSample (wfinfo);
 	num_samples = (unsigned long)(data_length/(channels*((bits_per_sample + 7)/8)));
 	lame_set_num_samples (gfp, num_samples);
