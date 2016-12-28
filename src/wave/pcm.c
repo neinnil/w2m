@@ -241,6 +241,7 @@ readPCM_data_uint8(pcm_reader_data* pcmhdl, int toread)
 		samples_to_read *= pcmhdl->nChannels;
 
 		nread = fread (buffer, 1, samples_to_read, pcmhdl->wave_in);
+		nread /= pcmhdl->nChannels;
 		if (nread > 0)
 		{
 			short *pch[2] ;
@@ -248,7 +249,6 @@ readPCM_data_uint8(pcm_reader_data* pcmhdl, int toread)
 			pch[1] = (short*)(pcmhdl->pcm16->ch[1]);
 			if (pcmhdl->nChannels == 2)
 			{
-				nread /= pcmhdl->nChannels;
 				for (i=0; i<nread; i++)
 				{
 					pch[0][i] = ((short)(buffer[2*i] - 0x80) << 8 );
@@ -346,13 +346,13 @@ readPCM_data_short(pcm_reader_data* pcmhdl, int toread)
 	int nread = 0;
 
 	nread = fread (buffer, sizeof(int16_t), samples_to_read, pcmhdl->wave_in);
+	nread /= pcmhdl->nChannels;
 
 	if (nread>0)
 	{
 		int i;
 		if (pcmhdl->nChannels == 2)
 		{
-			nread /= pcmhdl->nChannels;
 			for ( i=0; i<nread ; i++)
 			{
 				pbf_0[i] = buffer[i*2];
@@ -361,7 +361,7 @@ readPCM_data_short(pcm_reader_data* pcmhdl, int toread)
 		} 
 		else if (pcmhdl->nChannels == 1)
 		{
-			memcpy(pbf_0, buffer, nread);
+			memcpy(pbf_0, buffer, nread*sizeof(short));
 		}
 		else 
 		{
