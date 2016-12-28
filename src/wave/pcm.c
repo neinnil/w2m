@@ -5,6 +5,7 @@
 #include <string.h>
 #include "nein/wave.h"
 #include "nein/pcm.h"
+#include "nein/debug.h"
 
 #define DEF_READ_NSAMPLE	1152
 #define DEF_READ_SIZE		(2*DEF_READ_NSAMPLE)

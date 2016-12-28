@@ -21,6 +21,7 @@
 #include <errno.h>
 //#include "nein/error.h"
 #include "nein/wave.h"
+#include "nein/debug.h"
 
 static
 WAVE_FILE_INFO_T*
@@ -50,7 +51,7 @@ getWaveInfoFromFile (const char* file)
 		return NULL;
 	}
 	if (!(ifp=fopen(file, "rb"))){
-		fprintf(stderr,"File(%s) cannot be opened.\n", file);
+		NIL_ERROR("File(%s) cannot be opened.\n", file);
 		return NULL;
 	}
 
@@ -75,7 +76,7 @@ getWaveInfo (FILE* infp)
 		return NULL;
 	}
 	if (!(pOut=allocWAVE_BASE())){
-		fprintf(stderr,"Fail to allocate WAVE_FILE_INFO_T.\n");
+		NIL_ERROR("Fail to allocate WAVE_FILE_INFO_T.\n");
 		return NULL;
 	}
 
@@ -125,7 +126,7 @@ getWaveInfo (FILE* infp)
 					} 
 					else
 					{
-						printf ("Cannot read %ld bytes.\n", skip_or_read);
+						NIL_ERROR ("Cannot read %ld bytes.\n", skip_or_read);
 					}
 				}
 				else if (!strncmp((const char*)chk.CHKIDS, "fact", 4))
@@ -134,7 +135,7 @@ getWaveInfo (FILE* infp)
 					memcpy (p, &chk, sizeof(CHUNK_T));
 					//p += sizeof(CHUNK_T);
 					rc = fread(&(pOut->factchk.dwSampleLength), sizeof(uint32_t),1,infp);
-					printf ("\tdwSampleLength: %u\n", pOut->factchk.dwSampleLength);
+					NIL_DEBUG ("\tdwSampleLength: %u\n", pOut->factchk.dwSampleLength);
 				}
 				else if (!strncmp((const char*)chk.CHKIDS, "data", 4))
 				{
@@ -259,7 +260,7 @@ getWAVEBitsPerSample (WAVE_FILE_INFO_T* wfinfo)
 			bitspersample = ((WAVE_EXT_FMT_T*)&wfinfo->waveInfo)->Samples.wSamplesPerBlock;
 		}
 	} else {
-		fprintf(stderr,"%s:%d Not supported wave file format.\n", __FILE__, __LINE__);
+		NIL_DEBUG("%s:%d Not supported wave file format.\n",__FILE__,__LINE__);
 	}
 	return bitspersample;
 }
@@ -296,7 +297,7 @@ getWAVEValidBitsPerSample (WAVE_FILE_INFO_T* wfinfo)
 	}
 	else
 	{
-		fprintf(stderr,"%s:%d Not supported wave file format.\n", __FILE__, __LINE__);
+		NIL_DEBUG("%s:%d Not supported wave file format.\n", __FILE__,__LINE__);
 	}
 	return bitspersample;
 }
@@ -358,7 +359,7 @@ int readRIFFHeader (FILE* fp, WAVE_HEADER_T *riff_tag)
 		if (rc == 1)
 		{
 			printChunk(&riff.riff);
-			printf ("ID: %4.4s, %x\n", riff.waveid.WAVEIDS, riff.waveid.WAVEID);
+			NIL_DEBUG("ID: %4.4s, %x\n", riff.waveid.WAVEIDS, riff.waveid.WAVEID);
 			if ( strncmp((const char*)riff.riff.CHKIDS, "RIFF", 4) 
 				|| strncmp((const char*)riff.waveid.WAVEIDS, "WAVE", 4) )
 			{
@@ -389,7 +390,7 @@ int readNextChunk (FILE *fp, CHUNK_T *chunk)
 		rc = fread (chunk, sizeof(CHUNK_T), 1, fp);
 		if (rc)
 		{
-#ifndef NDEBUG
+#if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
 			if (chunk->ID.chkids[0]=='\0')
 			{
 				printf ("ID: %c%c%c%cs, %x\n"
@@ -485,7 +486,7 @@ printWaveInfo(WAVE_FILE_INFO_T *info)
 	{
 		printf("File: %s\n", info->name);
 		printf("Length: %u\n", info->length);
-		printf ("is it a wave file? %s\n", info->isWAVEfile?"Yes":"No");
+		printf ("Is it a wave file? %s\n", info->isWAVEfile?"Yes":"No");
 		if (info->isWAVEfile) 
 		{
 			printChunk(&(info->waveHeader.riff));
@@ -507,7 +508,7 @@ printWaveInfo(WAVE_FILE_INFO_T *info)
 void
 printChunk(CHUNK_T *chk)
 {
-	printf ("ID: [%4.4s] (0x%x), Length: %d\n",
+	NIL_DEBUG("ID: [%4.4s] (0x%x), Length: %d\n",
 			chk->CHKIDS, chk->CHKID, chk->chk_size );
 }
 

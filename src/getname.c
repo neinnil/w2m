@@ -19,6 +19,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include "nein/debug.h"
+
 #include "getname.h"
 
 #define SEPARATOR "/"
@@ -70,25 +72,25 @@ char * get_suggested_filename (char *src, char *dst_ext)
 	base = basename_r(src, bname);
 	dir_name = dirname_r (src, dname);
 	ext = get_extension(src);
-	printf ("Dirname: %s\n", dir_name);
-	printf ("Basename: %s\n", base);
-	printf ("Extension: %s\n", ext?ext:"(nil)");
-	printf ("Remove extenstion [%s] --> ", base);
+	NIL_DEBUG("Dirname: %s\n", dir_name);
+	NIL_DEBUG("Basename: %s\n", base);
+	NIL_DEBUG("Extension: %s\n", ext?ext:"(nil)");
+	NIL_DEBUG("Remove extenstion [%s] --> ", base);
 	tmp = strrchr(base, '.');
 	if (tmp) {
 		*tmp = 0x00;
-		printf ("[%s]: changed\n", base);
+		NIL_DEBUG("[%s]: changed\n", base);
 	} else {
-		printf ("[%s]: Not changed.\n", base);
+		NIL_DEBUG("[%s]: Not changed.\n", base);
 	}
 	tmp = (char *)malloc(FILENAME_MAX);
 	if (tmp) {
 		int i = 0;
 		snprintf (tmp,FILENAME_MAX,"%s/%s.%s",dir_name, base, dst_ext);
-		printf ("Temporary Filename: %s\n", tmp);
+		NIL_DEBUG ("Temporary Filename: %s\n", tmp);
 		while (existFile(tmp)){
 			snprintf (tmp,len,"%s/%s_%d.%s",dir_name, base, i, dst_ext);
-			printf ("Temporary Filename: %s\n", tmp);
+			NIL_DEBUG ("Temporary Filename: %s\n", tmp);
 			i++;
 		}
 	} else {

@@ -36,6 +36,7 @@
 #include <signal.h>
 #include <errno.h>
 #include "nein/osa.h"
+#include "nein/debug.h"
 
 static int sysCore = 0;
 
@@ -86,7 +87,7 @@ typedef void(*ftn_call)(const char *path);
 static ftn_call walking_dir_doing = NULL;
 int _ftw_fn (const char* path, const struct stat *st, int itype, struct FTW *sftw)
 {
-	fprintf (stderr, "PATH: %s\n", path);
+	NIL_DEBUG ("PATH: %s\n", path);
 	if (itype == FTW_F) {
 		if (walking_dir_doing){
 			walking_dir_doing (path);
@@ -130,38 +131,24 @@ int walkThDir(char* dpath, void(*doing)(const char *fpath))
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
 	int fts_option = FTS_NOCHDIR ; //FTS_LOGICAL|FTS_NOCHDIR; 
-	printf ("try open %s\n", dpath);
+	NIL_DEBUG("try open %s\n", dpath);
 
 	if (!(pfts = fts_open (&dpath, fts_option, fts_comp)) ){
-		printf("fts_open error. \n");
+		NIL_ERROR("fts_open error. \n");
 		return 2;
 	}
 	while (NULL!=(pfte=fts_read(pfts)) ) {
 		if (pfte->fts_info == FTS_F && doing) {
-			fprintf (stderr, "doing something %s\n", pfte->fts_path);
+			NIL_DEBUG("doing something %s\n", pfte->fts_path);
 			doing ((const char*)pfte->fts_path);
 		}
-#if 0
-		if(NULL != (pchild=fts_children(pfts, fts_option))) {
-			printf("fts_children\n");
-			while (pchild && pchild->fts_link) {
-				pchild = pchild->fts_link;
-				if (pchild->fts_info == FTS_F) {
-					if (doing) {
-						fprintf (stderr, "doing something %s\n", pchild->fts_path);
-						doing ((const char*)pchild->fts_path);
-					}
-				}
-			}
-		}
-#endif
 	}
 	fts_close (pfts);
 #elif defined (__MINGW32__)
 	walking_dir_doing = doing;
-	printf ("%s:%d\n", __FILE__, __LINE__);
+	NIL_DEBUG ("%s:%d\n", __FILE__, __LINE__);
 	if (0!= (rc = nftw(dpath, _ftw_fn, 2048, 0))) {
-		fprintf(stderr, "nftw returns -1\n");
+		NIL_ERROR("nftw returns -1\n");
 		rc = - errno;
 	}
 #endif
@@ -192,14 +179,14 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 
 	CPU_ZERO(&cpuset);
 	if (onCore >= sysCore){
-		printf("input value is over sysCore. addjust to %d\n", onCore%sysCore);
+		NIL_DEBUG("input value is over sysCore. addjust to %d\n", onCore%sysCore);
 		onCore %= sysCore;
 	}
 	CPU_SET(onCore, &cpuset);
 	if (NULL == iattr) {
 		if(!(pattr = (pthread_attr_t *)malloc(sizeof(pthread_attr_t)))) 
 		{
-			printf("Couldn't allocate for pthread_attr_t\n");
+			NIL_ERROR("Couldn't allocate for pthread_attr_t\n");
 			return NULL;
 		}
 		pthread_attr_init(pattr);
@@ -208,7 +195,7 @@ pthread_attr_t *setCore (pthread_attr_t *iattr, int onCore)
 	}
 	if (0 != pthread_att_setaffinity_np(&pattr, sizeof(cpu_set_t), &cpuset)){
 		if (iattr & pattr){
-			printf("Could not setaffinity... \n");
+			NIL_DEBUG("Could not setaffinity... \n");
 			pthread_attr_destroy(pattr);
 			pattr = NULL;
 		}
@@ -225,10 +212,8 @@ int getNumOfCores(int *core)
 #if defined(__linux__) || defined(__APPLE__)
 	nCore = sysconf(_SC_NPROCESSORS_ONLN);
 #elif defined (__MINGW32__) 
-//#if defined (PTW32_VERSION)
 	nCore = pthread_num_processors_np();
-	fprintf (stderr, "%d core%s\n", nCore, nCore>1?"s":"");
-//#endif
+	NIL_DEBUG("%d core%s\n", nCore, nCore>1?"s":"");
 #endif
 	if(nCore < 1) nCore = 1;
 	*core = sysCore = nCore;
@@ -290,7 +275,7 @@ void *_task_work(void *arg)
 #endif
 	nil_task_t *taskarg = NULL;
 	if (!arg) {
-		fprintf(stderr,"%s[%d] null argument.\n",__FUNCTION__,__LINE__);
+		NIL_DEBUG("%s[%d] null argument.\n",__FUNCTION__,__LINE__);
 		return (void*)0;
 	}
 	taskarg = (nil_task_t*)arg;
@@ -365,7 +350,6 @@ int waitAllTasks(nil_task_mgm_t *mgm)
 	task = mgm->nextTask(mgm);
 	while (task) {
 		rc = pthread_join(task->tid, NULL);
-//		printf ("pthread_join returns %d\n", rc);
 		task = mgm->nextTask(mgm);
 	}
 	return 0;

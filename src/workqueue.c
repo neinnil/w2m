@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <assert.h>
+#include "nein/debug.h"
 
 #include "workqueue.h"
 
@@ -299,7 +300,7 @@ int addItem2Done(workqueue_t *wq, workitem_t *wit)
 
 	rc = pthread_mutex_trylock (wit->mu);
 	if (rc ==EBUSY) {
-		fprintf(stdout, "%s:%d Already locked.\n", __FILE__, __LINE__);
+		NIL_DEBUG("%s:%d Already locked.\n", __FILE__, __LINE__);
 	}
 	pthread_mutex_unlock (wit->mu);
 	pthread_mutex_unlock(wq->mu);

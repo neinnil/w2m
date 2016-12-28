@@ -17,10 +17,7 @@
 #include "workqueue.h"
 #include "jobitem.h"
 #include "getname.h"
-
-#define NIL_DEBUG(fmt, ...) do {			\
-	fprintf(stderr, fmt##__VA_ARGS__);		\
-}while(0)
+#include "nein/debug.h"
 
 void showUsage(char *progname){
 	printf ("Usage: %s dir_path \n", progname);
@@ -33,7 +30,7 @@ void showUsage(char *progname){
 
 /** global variables */
 static int bQuit = 0;
-static int doneCrawing = 0;
+static int doneCrawling = 0;
 static int nTotal = 0;
 static int nFree = 0;
 static int nDoing = 0;
@@ -91,8 +88,8 @@ static void print_item (workitem_t *wit)
 			winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
 		if (winfo)
 		{
-			printf ("%20p | %20p | %20p | %20p \n",
-					wit->priv, wit, wit->list.prev, wit->list.next);
+			//printf ("%20p | %20p | %20p | %20p \n",
+			//		wit->priv, wit, wit->list.prev, wit->list.next);
 			printWaveInfo(winfo);
 		}
 	}
@@ -102,7 +99,7 @@ static void print_list (workqueue_t *wq, int listType, int limit)
 {
 	workitem_t *wit = NULL;
 	
-	printf ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
+	//printf ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
 	wit = nextItem[listType](wq);
 	while (wit && limit) {
 		print_item(wit);
@@ -119,12 +116,21 @@ static void printWorkResult (workqueue_t *wq)
 
 		wq->curFree = wq->curDoing = wq->curDone = NULL;
 
-		printf ("Free working list\n");
-		print_list (wq, LIST_OF_FREE, nFree);
-		printf ("Doing working list\n");
-		print_list (wq, LIST_OF_DOING, nDoing);
-		printf ("Done working list\n");
-		print_list (wq, LIST_OF_DONE, nDone);
+		if (nFree>0) 
+		{
+			printf ("Free working list (%d)\n",nFree);
+			print_list (wq, LIST_OF_FREE, nFree);
+		}
+		if (nDoing>0)
+		{
+			printf ("Doing working list (%d)\n",nDoing);
+			print_list (wq, LIST_OF_DOING, nDoing);
+		}
+		if (nDone>0)
+		{
+			printf ("Done working list (%d)\n",nDone);
+			print_list (wq, LIST_OF_DONE, nDone);
+		}
 
 		wq->curFree = wq->curDoing = wq->curDone = NULL;
 	}
@@ -170,7 +176,7 @@ static int isDirectory(const char *path, DIR** ppdir)
 		return -EINVAL;
 	}
 	if (!(pdir = opendir(path))) {
-		printf("opendir returns %d:%s\n",errno, strerror(errno));
+		NIL_ERROR("opendir returns %d:%s\n",errno, strerror(errno));
 		return -errno;
 	}
 	if (ppdir != NULL)
@@ -207,22 +213,13 @@ void * nilWorks (void *arg)
 		pthread_mutex_lock (&gMutex);
 		pthread_cond_wait (&gCond, &gMutex);
 		pthread_mutex_unlock (&gMutex);
-		if (!lame_gfp)
+		if (!mp3buffer) 
 		{
-			lame_gfp = lame_init();
-			if (!lame_gfp)
+			mp3buffer = (unsigned char *)malloc (LAME_MAXMP3BUFFER);
+			if (!mp3buffer)
 			{
-				fprintf(stderr,"lame_init: error.\n");
+				NIL_ERROR ("mp3buffer: allocation failed.\n");
 				break;
-			}
-			if (!mp3buffer) 
-			{
-				mp3buffer = (unsigned char *)malloc (LAME_MAXMP3BUFFER);
-				if (!mp3buffer)
-				{
-					fprintf (stderr, "mp3buffer: allocation failed.\n");
-					break;
-				}
 			}
 		}
 
@@ -238,7 +235,7 @@ void * nilWorks (void *arg)
 				pcm_reader_data	 *pcmhdl = NULL;
 				addItem2Doing(workQueue, work);
 				job = (jobitem_t*)(work->priv);
-				printf ("[%p] working jobs : %s\n", pthread_self(),job->src);
+				NIL_DEBUG ("[%p] working jobs : %s\n", pthread_self(),job->src);
 				set_state (job, WORK_DOING);
 				job->isSupported =0;
 				/* check pcm header */
@@ -276,11 +273,20 @@ void * nilWorks (void *arg)
 
 						formatTag = getWAVEFormatTag (wfinfo);
 						job->dst = get_suggested_filename (job->src, NULL);
-						printf ("Src[%s] --> Dst[%s]\n", job->src, job->dst);
+						NIL_DEBUG ("Src[%s] --> Dst[%s]\n", job->src, job->dst);
 						outfp = fopen (job->dst, "w");
 						setSupportedFlag (job, SUPPORTED_FILE);
 						setPCM_file_position (pcmhdl);
 						bits_per_sample = getWAVEBitsPerSample (wfinfo);
+						if (!lame_gfp)
+						{
+							lame_gfp = lame_init();
+							if (!lame_gfp)
+							{
+								NIL_ERROR("lame_init: error.\n");
+								break;
+							}
+						}
 
 						id3tag_init(lame_gfp);
 						lame_set_findReplayGain(lame_gfp, 1);
@@ -292,16 +298,16 @@ void * nilWorks (void *arg)
 						}
 
 						lame_set_quality (lame_gfp, 2);
-						printf ("MPEG_mode: %d\n", lame_get_mode(lame_gfp));
+						NIL_DEBUG ("MPEG_mode: %d\n", lame_get_mode(lame_gfp));
 
-						lame_set_write_id3tag_automatic(lame_gfp, 0);
+						//lame_set_write_id3tag_automatic(lame_gfp, 0);
 
 						if (is_lame_initialized)
 						{
 							rc = lame_init_bitstream (lame_gfp);
 							if (rc < 0)
 							{
-								fprintf(stderr,"lame_init_bitstream failed.\n");
+								NIL_ERROR("lame_init_bitstream failed.\n");
 								job->isSupported = 0;
 								goto routine_not_supported;
 							}
@@ -311,14 +317,17 @@ void * nilWorks (void *arg)
 							rc = lame_init_params(lame_gfp);
 							if (rc <0)
 							{
-								fprintf(stderr,"lame_init_params failed.\n");
+								NIL_ERROR("lame_init_params failed.\n");
 								job->isSupported = 0;
 								goto routine_not_supported;
 							}
 							is_lame_initialized = 1;
 						}
+#if !defined(NIL_DEBUG_OFF)
+						lame_print_config (lame_gfp);
+#endif
 						/* write id3 tag */
-						write_id3_tag (lame_gfp, outfp);
+						//write_id3_tag (lame_gfp, outfp);
 
 						while (!bQuit)
 						{
@@ -410,6 +419,11 @@ routine_not_supported:
 							unlink (job->dst);
 						}
 					}
+					if (lame_gfp) {
+						lame_close(lame_gfp);
+						lame_gfp = NULL;
+						is_lame_initialized = 0;
+					}
 				}
 
 				set_state (job, WORK_DONE);
@@ -429,13 +443,17 @@ static int createTasks (int numCores)
 {
 	nil_task_t	*task = NULL;
 	int			rc = 0;
+#if !defined(NIL_ONE_THREAD)
 	int			limitTasks = numCores * 2;
+#else
+	int			limitTasks = 1;
+#endif
 	for ( ; limitTasks > 0 ; limitTasks--) {
 		initTask (&task);
 		task->onCore = (limitTasks%numCores);
 		task->work_run = nilWorks;
 		if (0>(rc=createTask (task))){
-			printf ("createTask returns %d\n", rc);
+			NIL_ERROR ("createTask returns %d\n", rc);
 		}
 		addTask2TaskMgm (taskmanager, task);
 	}
@@ -447,7 +465,7 @@ void gatheringData (const char *fpath)
 	jobitem_t *job = NULL;
 	workitem_t *wi = NULL;
 	if (!fpath) return ;
-	printf (">>> %s\n", fpath);
+	NIL_DEBUG (">>> %s\n", fpath);
 	job = alloc_jobitem ((char*)fpath);
 	if (!job) {
 		return;
@@ -478,7 +496,7 @@ void gatheringData (const char *fpath)
 static void completedCallBack(void)
 {
 	/* set timer */
-	if (doneCrawing 
+	if (doneCrawling 
 		&& 0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone)){
 		if (nTotal == nDone) {
 			bQuit = 2;
@@ -502,34 +520,37 @@ int main (int ac, char **av)
 
 	/* check whether  argument is a directory or not? */
 	if (0 != isDirectory((const char*)*(av+1), NULL)){
-		printf ("%s is not a directory.\n", *(av+1));
+		NIL_ERROR ("%s is not a directory.\n", *(av+1));
 		return 2;
 	}
 
 	init_wq(&workQueue);
 	setCompleteFn (workQueue, completedCallBack);
 	set_Freefunction (freeJobs);
-	printf ("--af initializing workqueue. \n");
 	initTaskManager (&taskmanager);
-	printf ("--af initializing task manager. \n");
 	getNumOfCores(&numOfCores);
-	printf ("--af %d cores. \n", numOfCores);
 	createTasks(numOfCores);
-	printf ("--af creating task.. \n");
 
-	lookingdir = (char*)*(av+1);
-	printf ("looking for files in %s\n", lookingdir);
-	walkThDir (lookingdir, gatheringData);
-	pthread_mutex_lock(&gMutex);
-	pthread_cond_signal(&gCond);
-	pthread_mutex_unlock(&gMutex);
-	doneCrawing = 1;
+	lookingdir = strdup(av[1]); //(char*)*(av+1);
+	if (!lookingdir)
+	{
+		bQuit = 1;
+		broadcastingCond();
+	}
+	else
+	{
+		NIL_DEBUG("looking for files in %s\n", lookingdir);
+		walkThDir (lookingdir, gatheringData);
+		doneCrawling = 1;
+	}
+
 	waitAllTasks (taskmanager);
 
 	printWorkResult (workQueue);
 
 	destroy_wq (&workQueue);
 	destroy_TaskManager(&taskmanager);
+	free(lookingdir);
 	return 0;
 }
 
@@ -547,38 +568,47 @@ int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo)
 	channels = (int)getWAVEChannels(wfinfo);
 	if (-1 == lame_set_num_channels (gfp, channels))
 	{
-		printf ("lame_set_num_channels return -1, (%d)\n", channels);
+		NIL_ERROR ("lame_set_num_channels return -1, (%d)\n", channels);
 		return -1;
 	}
-	printf ("channels %d, %d\n", channels, lame_get_num_channels(gfp));
+	NIL_DEBUG ("channels %d, %d\n", channels, lame_get_num_channels(gfp));
 
 	/* set sample rate */
 	samples_per_sec = (unsigned long)getWAVESampleRate (wfinfo);
 	if (-1 == lame_set_in_samplerate (gfp, samples_per_sec))
 	{
-		printf ("lame_set_in_samplerate -1 (%lu)\n", samples_per_sec);
+		NIL_ERROR ("lame_set_in_samplerate -1 (%lu)\n", samples_per_sec);
 		return -1;
 	}
-	printf ("samples/sec %lu, %d\n", samples_per_sec
+	NIL_DEBUG ("samples/sec %lu, %d\n", samples_per_sec
 			, lame_get_in_samplerate(gfp));
 	if (samples_per_sec < 16000)
 	{
 		(void)lame_set_out_samplerate(gfp, 16000);
 	}
-
+#if 0
+	else 
+	{
+		int rc = 0;
+		printf ("out samplerate: %d\n", lame_get_out_samplerate(gfp));
+		rc = lame_set_out_samplerate(gfp, samples_per_sec);
+		printf ("[%d]out samplerate: %d\n",rc, lame_get_out_samplerate(gfp));
+	}
+#endif
 	/* set number of samples */
 	data_length = getWAVEDataLength (wfinfo);
 	if (data_length > 0 && data_length%2)
 	{
 		data_length += 1;
 	}
-	printf ("Data length: %ld\n", data_length);
+	NIL_DEBUG ("Data length: %ld\n", data_length);
 	bits_per_sample = getWAVEBitsPerSample (wfinfo);
 	num_samples = (unsigned long)(data_length/(channels*((bits_per_sample + 7)/8)));
 	lame_set_num_samples (gfp, num_samples);
 
 	return 0;
 }
+
 void
 write_id3_tag (lame_t gfp, FILE *outfp)
 {
