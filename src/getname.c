@@ -58,9 +58,11 @@ char * get_suggested_filename (char *src, char *dst_ext)
 {
 	char	*tmp = NULL;
 	char	*base = NULL;
-	char	bname[FILENAME_MAX];
 	char	*dir_name = NULL;
+#ifdef __APPLE__
+	char	bname[FILENAME_MAX];
 	char	dname[FILENAME_MAX];
+#endif
 	char	*ext = NULL;
 	int		len = FILENAME_MAX;
 	if (!src) {
@@ -69,8 +71,13 @@ char * get_suggested_filename (char *src, char *dst_ext)
 	}
 	if (!dst_ext)
 		dst_ext = dfl_ext;
+#ifdef __APPLE__
 	base = basename_r(src, bname);
 	dir_name = dirname_r (src, dname);
+#else
+	base = basename(src);
+	dir_name = dirname (src);
+#endif
 	ext = get_extension(src);
 	NIL_DEBUG("Dirname: %s\n", dir_name);
 	NIL_DEBUG("Basename: %s\n", base);
