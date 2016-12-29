@@ -127,13 +127,15 @@ int walkThDir(char* dpath, void(*doing)(const char *fpath))
 {
 	int rc = 0;
 #if defined (__linux__) || defined (__APPLE__)
+	char *fts_arg[2] = {NULL, NULL};
 	FTS *pfts = NULL;
 	FTSENT	*pfte = NULL;
 	FTSENT  *pchild = NULL;
 	int fts_option = FTS_NOCHDIR ; //FTS_LOGICAL|FTS_NOCHDIR; 
 	NIL_DEBUG("try open %s\n", dpath);
+	fts_arg[0] = dpath;
 
-	if (!(pfts = fts_open (&dpath, fts_option, fts_comp)) ){
+	if (!(pfts = fts_open (fts_arg, fts_option, fts_comp)) ){
 		NIL_ERROR("fts_open error. \n");
 		return 2;
 	}
