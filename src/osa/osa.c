@@ -383,7 +383,7 @@ int addTask2TaskMgm (nil_task_mgm_t *tmgm, nil_task_t *task)
 
 nil_task_t *getNext (nil_task_mgm_t *tmgm)
 {
-	if (tmgm) {
+	if (tmgm && tmgm->nextTask) {
 		return tmgm->nextTask(tmgm);
 	}
 	return NULL;
@@ -393,10 +393,12 @@ void destroy_TaskManager (nil_task_mgm_t **tmgm)
 {
 	if (tmgm && *tmgm){
 		nil_task_t *task = NULL;
+		(*tmgm)->saved = NULL;
 		task = (*tmgm)->nextTask (*tmgm);
 		while (task) {
 			(*tmgm)->delTask (*tmgm, task);
 			(void)destroyTask(task);
+			(*tmgm)->saved = NULL;
 			task = (*tmgm)->nextTask (*tmgm);
 		}
 		free (*tmgm);
