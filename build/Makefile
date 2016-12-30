@@ -23,6 +23,9 @@ LDFLAGS += -lpthread
 endif
 
 LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -Wl,-Bstatic -lmp3lame
+ifneq ($(OS),Msys)
+LDFLAGS += -Wl,-Bdynamic -lm
+endif
 
 VPATH += $(TOP_DIR)/src
 SRCS += getname.c
