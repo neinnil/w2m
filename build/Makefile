@@ -3,6 +3,7 @@
 TOP_DIR ?= $(PWD)/..
 
 CC=gcc
+OS = $(shell uname -o)
 
 INCDIR=$(TOP_DIR)/include
 EXTINC=$(TOP_DIR)/ext_lib/include
@@ -15,7 +16,11 @@ CFLAGS += -pipe
 CFLAGS += -funroll-loops
 #LDFLAGS += -static-libgcc -static
 
+ifeq ($(OS),Msys)
 LDFLAGS += -Wl,-Bstatic -lpthread
+else
+LDFLAGS += -lpthread
+endif
 
 LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -Wl,-Bstatic -lmp3lame
 
