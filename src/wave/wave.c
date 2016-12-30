@@ -493,12 +493,17 @@ printWaveInfo(WAVE_FILE_INFO_T *info)
 			printf ("ID: [%4.4s] (0x%x)\n"
 				, info->waveHeader.waveid.WAVEIDS, info->waveHeader.waveid.WAVEID);
 			printWaveFmtInfo ( &(info->waveInfo) );
-			printChunk(&(info->datainfo.data));
+			//printChunk(&(info->datainfo.data));
+			printf("ID: [%4.4s] (0x%x), Length: %d\n"
+					, info->datainfo.data.CHKIDS
+					, info->datainfo.data.CHKID
+					, info->datainfo.data.chk_size);
 			printf("offset of data: %u\n", info->datainfo.offset);
 			if (info->factchk.fact.chk_size)
 			{
 				printChunk(&(info->factchk.fact));
-				printf ("\tdwSampleLength: %u\n", info->factchk.dwSampleLength);
+				printf ("FACT\tdwSampleLength: %u\n"
+						, info->factchk.dwSampleLength);
 			}
 		}
 	}
