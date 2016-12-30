@@ -62,6 +62,9 @@ char * get_suggested_filename (char *src, char *dst_ext)
 #ifdef __APPLE__
 	char	bname[FILENAME_MAX];
 	char	dname[FILENAME_MAX];
+#else
+	char	saved[FILENAME_MAX];
+	int		copylen;
 #endif
 	char	*ext = NULL;
 	int		len = FILENAME_MAX;
@@ -75,8 +78,13 @@ char * get_suggested_filename (char *src, char *dst_ext)
 	base = basename_r(src, bname);
 	dir_name = dirname_r (src, dname);
 #else
-	base = basename(src);
-	dir_name = dirname (src);
+	copylen = strlen(src);
+	if (copylen >= FILENAME_MAX) 
+		copylen = FILENAME_MAX-1;
+	strncpy (saved, src, copylen);
+	saved[copylen] = '\0';
+	base = basename(saved);
+	dir_name = dirname (saved);
 #endif
 	ext = get_extension(src);
 	NIL_DEBUG("Dirname: %s\n", dir_name);
@@ -103,6 +111,16 @@ char * get_suggested_filename (char *src, char *dst_ext)
 	} else {
 		tmp = tmp_name;
 	}
+#if 0
+	{
+		char *p = dir_name;
+		p += strlen(dir_name);
+		printf ("%p(p+strlen) %p(base) \n", p, base);
+		if ( base == p+1 ){
+			*p = '/';
+		}
+	}
+#endif
 	return tmp;
 }
 #if 0
