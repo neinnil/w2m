@@ -16,7 +16,7 @@ fi
 }
 
 
-if [ ! -d $TOP_DIR/ext_lib || ! -e $TOP_DIR/ext_src/.installed ] ; then
+if [[ ! -d $TOP_DIR/ext_lib || ! -e $TOP_DIR/ext_src/.installed ]] ; then
 install_lame
 fi
 
