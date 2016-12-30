@@ -15,12 +15,11 @@ touch $TOP_DIR/ext_src/.installed
 fi
 }
 
-
 if [[ ! -d $TOP_DIR/ext_lib || ! -e $TOP_DIR/ext_src/.installed ]] ; then
 install_lame
 fi
 
 cd $TOP_DIR
-cd build
+cd ./build
 make w2m
 
