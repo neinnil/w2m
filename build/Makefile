@@ -10,9 +10,14 @@ EXTINC=$(TOP_DIR)/ext_lib/include
 CFLAGS += -I$(INCDIR)
 CFLAGS += -I$(EXTINC)
 CFLAGS += -I$(TOP_DIR)/src
-CFLAGS += -g
-LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -lmp3lame
-LDFLAGS += -lpthread
+CFLAGS += -O3
+CFLAGS += -pipe
+CFLAGS += -funroll-loops
+#LDFLAGS += -static-libgcc -static
+
+LDFLAGS += -Wl,-Bstatic -lpthread
+
+LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -Wl,-Bstatic -lmp3lame
 
 VPATH += $(TOP_DIR)/src
 SRCS += getname.c
@@ -41,7 +46,7 @@ all: w2m $(UTILS)
 w2m: w2m.o jobitem.o workqueue.o clinkedlist.o getname.o osa.o pcm.o wave.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-winfo: winfo.o wave.o
+winfo: winfo.o wave.o getname.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 cltest: cltest.o clinkedlist.o
