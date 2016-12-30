@@ -109,12 +109,28 @@ getWaveInfo (FILE* infp)
 					rc = fread (buffer, 1, (size_t)skip_or_read, infp);
 					if (rc == skip_or_read)
 					{
+						//uint16_t fmtTag;
 						p = &(pOut->waveInfo);
 						memcpy (p, &chk, sizeof(CHUNK_T));
 						p += sizeof(CHUNK_T);
 						if (skip_or_read > 40) skip_or_read = 40;
 						memcpy (p, buffer, skip_or_read);
 
+#if 0
+						fmtTag = ((WAVE_PCM_T*)&(pOut->waveInfo))->fmtTag;
+						NIL_DEBUG("fmtTag : %04x\n", fmtTag);
+
+						if (WAVE_FORMAT_PCM == fmtTag)
+							pOut->waveType = WAVE_PCM_TYPE;
+						else if ( WAVE_FORMAT_IEEE_FLOAT == fmtTag
+								|| WAVE_FORMAT_ALAW == fmtTag 
+								|| WAVE_FORMAT_MULAW == fmtTag)
+							pOut->waveType = WAVE_NON_PCM_TYPE;
+						else if (WAVE_FORMAT_EXTENSIBLE == fmtTag)
+							pOut->waveType = WAVE_EXT_FMT_TYPE;
+						else 
+							pOut->waveType = 0;
+#else
 						if (chk.chk_size == 16)
 							pOut->waveType = WAVE_PCM_TYPE;
 						else if (chk.chk_size == 18)
@@ -123,6 +139,7 @@ getWaveInfo (FILE* infp)
 							pOut->waveType = WAVE_EXT_FMT_TYPE;
 						else
 							pOut->waveType = 0;
+#endif
 					} 
 					else
 					{
