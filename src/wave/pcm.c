@@ -281,14 +281,16 @@ readPCM_data_int(pcm_reader_data* pcmhdl, int toread)
 	unsigned char buffer[DEF_READ_SIZE * sizeof(int)];
 	int	*pch[2];
 	int	i;
+	int bytes_per_sample = 4;
 
 	int nread = (DEF_READ_NSAMPLE>toread)?toread:DEF_READ_NSAMPLE;
 
 	if (!pcmhdl || pcmhdl->nChannels < 1 || pcmhdl->nChannels > 2)
 		return -1;
-	nread *= (pcmhdl->nChannels * ((pcmhdl->bitspersample + 7)/8));
+	nread *= pcmhdl->nChannels;
+	bytes_per_sample = (pcmhdl->bitspersample + 7)/8;
 	//nread *= pcmhdl->blockAlign;
-	nread = fread (buffer, 1, nread, pcmhdl->wave_in);
+	nread = fread (buffer, bytes_per_sample, nread, pcmhdl->wave_in);
 
 	if (nread <= 0)
 		return nread;
@@ -296,35 +298,49 @@ readPCM_data_int(pcm_reader_data* pcmhdl, int toread)
 	pch[0] = (int*)(pcmhdl->pcm32->ch[0]);
 	pch[1] = (int*)(pcmhdl->pcm32->ch[1]);
 
-	nread /= (pcmhdl->nChannels * ((pcmhdl->bitspersample + 7)/8));
+	nread /= pcmhdl->nChannels;
 	if (24 == pcmhdl->bitspersample)
 	{
-		int24_t	*tmp = (int24_t*)buffer;
+		int24_t	*tmp = (int24_t*)buffer + (nread * pcmhdl->nChannels);
 		if (2 == pcmhdl->nChannels)
 		{
+			for (i=nread; --i >=0 ; )
+			{
+				pch[1][i] = (*(int*)(--tmp))<<8;
+				pch[0][i] = (*(int*)(--tmp))<<8;
+			}
+			/***
 			for (i=0; i<nread; i++)
 			{
 				pch[0][i] = (*(int*)(tmp+2*i)) << 8;
 				pch[1][i] = (*(int*)(tmp+2*i+1)) << 8;
 			}
+			***/
 		}
 		else if (1 == pcmhdl->nChannels)
 		{
+			for (i=nread; --i >=0 ; )
+			{
+				pch[0][i] = (*(int*)(--tmp))<<8;
+			}
+			/***
 			for (i=0; i<nread; i++)
 			{
 				pch[0][i] = (*(int*)(tmp+i)) << 8;
 			}
+			****/
 		}
 	}
 	else if (32 == pcmhdl->bitspersample)
 	{
-		int *pbuf = (int*)buffer;
+		int *pbuf = (int*)buffer + (nread * pcmhdl->nChannels);
+
 		if (2 == pcmhdl->nChannels)
 		{
-			for (i=0; i<nread; i++)
+			for (i=nread; --i >=0 ; )
 			{
-				pch[0][i] = pbuf[2*i];
-				pch[1][i] = pbuf[2*i + 1];
+				pch[1][i] = *--pbuf;
+				pch[0][i] = *--pbuf;
 			}
 		}
 		else if (1 == pcmhdl->nChannels)
