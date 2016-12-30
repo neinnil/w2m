@@ -221,6 +221,7 @@ void * nilWorks (void *arg)
 				NIL_ERROR ("mp3buffer: allocation failed.\n");
 				break;
 			}
+			memset (mp3buffer, 0x00, LAME_MAXMP3BUFFER);
 		}
 
 		do
@@ -244,9 +245,9 @@ void * nilWorks (void *arg)
 				if (NULL!=(wfinfo = getWaveInfoFromFile (job->src))) 
 				{
 					FILE *outfp = NULL;
-					int		channels = 0;
-					int		samples_per_sec = 0;
-					unsigned long	num_samples = 0;
+					//int		channels = 0;
+					//int		samples_per_sec = 0;
+					//unsigned long	num_samples = 0;
 					long	data_length = 0;
 					int		bits_per_sample = 0;
 					uint16_t	formatTag = 0;
@@ -274,7 +275,7 @@ void * nilWorks (void *arg)
 						formatTag = getWAVEFormatTag (wfinfo);
 						job->dst = get_suggested_filename (job->src, NULL);
 						NIL_DEBUG ("Src[%s] --> Dst[%s]\n", job->src, job->dst);
-						outfp = fopen (job->dst, "w");
+						outfp = fopen (job->dst, "w+b");
 						setSupportedFlag (job, SUPPORTED_FILE);
 						setPCM_file_position (pcmhdl);
 						bits_per_sample = getWAVEBitsPerSample (wfinfo);
@@ -300,7 +301,7 @@ void * nilWorks (void *arg)
 						lame_set_quality (lame_gfp, 2);
 						NIL_DEBUG ("MPEG_mode: %d\n", lame_get_mode(lame_gfp));
 
-						//lame_set_write_id3tag_automatic(lame_gfp, 0);
+						lame_set_write_id3tag_automatic(lame_gfp, 0);
 
 						if (is_lame_initialized)
 						{
@@ -327,13 +328,22 @@ void * nilWorks (void *arg)
 						lame_print_config (lame_gfp);
 #endif
 						/* write id3 tag */
-						//write_id3_tag (lame_gfp, outfp);
+						write_id3_tag (lame_gfp, outfp);
 
 						while (!bQuit)
 						{
 							int	to_read_samples = 0;
 							int	remainSamples = pcmhdl->numOfSamples - pcmhdl->num_samples_read;
-							to_read_samples = (remainSamples>DEF_NSAMPLE)?DEF_NSAMPLE:remainSamples;
+							int	frameSize = 0;
+							to_read_samples = frameSize = lame_get_framesize(lame_gfp);
+							if (remainSamples < 0) remainSamples = 0;
+
+							if (remainSamples < frameSize 
+									&& 0!= pcmhdl->numOfSamples) 
+							{
+								to_read_samples = remainSamples;
+							}
+
 							nread = readPCM_data(pcmhdl, to_read_samples);
 							if (nread <=0) {
 								break;
@@ -398,6 +408,11 @@ void * nilWorks (void *arg)
 							}
 							/* write encoded buffer to output file */
 							nwrite = fwrite (mp3buffer, 1, imp3, outfp);
+							if (nwrite != imp3)
+							{
+								NIL_ERROR("fwrite %d %d %d\n"
+										,imp3, nwrite, imp3-nwrite);
+							}
 						}
 						/* lame_encode_flush */
 						imp3 = lame_encode_flush(lame_gfp, mp3buffer, LAME_MAXMP3BUFFER);
@@ -532,6 +547,7 @@ int main (int ac, char **av)
 	createTasks(numOfCores);
 
 	lookingdir = strdup(av[1]); //(char*)*(av+1);
+	//lookingdir = (char*)*(av+1);
 	if (!lookingdir)
 	{
 		bQuit = 1;
@@ -562,7 +578,7 @@ int setup_lame_config (lame_t gfp, WAVE_FILE_INFO_T *wfinfo)
 	long	data_length = 0;
 	int		bits_per_sample = 0;
 	unsigned long samples_per_sec = 0;
-	unsigned long nSamples = 0;
+	//unsigned long nSamples = 0;
 
 	/* set number of channels */
 	channels = (int)getWAVEChannels(wfinfo);
