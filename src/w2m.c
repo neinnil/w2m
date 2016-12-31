@@ -139,13 +139,15 @@ static void printWorkResult (workqueue_t *wq)
 static int set_signal(void)
 {
 	struct sighandle_set priHdl;
+	int	   rv = 0;
+
 	priHdl.signo = SIGINT;
 	priHdl.hndl = sighandler;
-	int	   rv = 0;;
 	if(0!=(rv = setSigHandler(&priHdl)))
 	{
 		rv = -errno;
 	}
+
 	return rv;
 }
 
@@ -441,7 +443,10 @@ routine_not_supported:
 					}
 				}
 
-				set_state (job, WORK_DONE);
+				if(1==bQuit)
+					set_state(job,WORK_ABORTED);
+				else
+					set_state (job, WORK_DONE);
 				addItem2Done(workQueue, work);
 			}
 		} while (work);
