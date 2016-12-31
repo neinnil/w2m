@@ -24,7 +24,7 @@ LDFLAGS += -lpthread
 endif
 
 LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -Wl,-Bstatic -lmp3lame
-ifneq ($(OS),Msys)
+ifneq ($(findstring MINGW, $(KERNEL)),MINGW)
 LDFLAGS += -Wl,-Bdynamic -lm
 endif
 
