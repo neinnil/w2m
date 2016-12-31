@@ -72,7 +72,7 @@ void	free_jobitem(jobitem_t *ji)
 
 void	set_state(jobitem_t *ji, int state)
 {
-	if (ji && state > ji->state) {
+	if (ji && state != ji->state) {
 		ji->state = state;
 	}
 }
