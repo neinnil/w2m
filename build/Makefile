@@ -3,7 +3,7 @@
 TOP_DIR ?= $(PWD)/..
 
 CC=gcc
-OS = $(shell uname -o)
+KERNEL = $(shell uname -s)
 
 INCDIR=$(TOP_DIR)/include
 EXTINC=$(TOP_DIR)/ext_lib/include
@@ -17,7 +17,7 @@ CFLAGS += -pipe
 CFLAGS += -funroll-loops
 #LDFLAGS += -static-libgcc -static
 
-ifeq ($(OS),Msys)
+ifeq ($(findstring MINGW, $(KERNEL)),MINGW)
 LDFLAGS += -Wl,-Bstatic -lpthread
 else
 LDFLAGS += -lpthread
