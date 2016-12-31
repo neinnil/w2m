@@ -8,6 +8,7 @@ OS = $(shell uname -o)
 INCDIR=$(TOP_DIR)/include
 EXTINC=$(TOP_DIR)/ext_lib/include
 
+CFLAGS += -D_POSIX
 CFLAGS += -I$(INCDIR)
 CFLAGS += -I$(EXTINC)
 CFLAGS += -I$(TOP_DIR)/src
