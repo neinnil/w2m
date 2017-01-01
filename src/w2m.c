@@ -350,51 +350,45 @@ void * nilWorks (void *arg)
 							if (nread <=0) {
 								break;
 							}
-							if (bits_per_sample <= 16)
+							if (WAVE_FORMAT_PCM == formatTag)
 							{
-								short *ch[2];
-								ch[0] = (short*)(pcmhdl->pcm16->ch[0]);
-								ch[1] = (short*)(pcmhdl->pcm16->ch[1]);
-								imp3 = lame_encode_buffer(lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER);
-							}
-							else if (bits_per_sample > 16)
-							{
-								if(formatTag == WAVE_FORMAT_PCM)
+								if (bits_per_sample <= 16)
+								{
+									short *ch[2];
+									ch[0] = (short*)(pcmhdl->pcm16->ch[0]);
+									ch[1] = (short*)(pcmhdl->pcm16->ch[1]);
+									imp3 = lame_encode_buffer(lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER);
+								}
+								else // if (bits_per_sample > 16: 24bit, 32bit)
 								{
 									int *ch[2];
 									ch[0] = (int*)(pcmhdl->pcm32->ch[0]);
 									ch[1] = (int*)(pcmhdl->pcm32->ch[1]);
 									imp3 = lame_encode_buffer_int (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER);
 								}
-								else if (formatTag == WAVE_FORMAT_IEEE_FLOAT)
+							}
+							else if (WAVE_FORMAT_IEEE_FLOAT == formatTag)
+							{
+								if (bits_per_sample == 32)
 								{
-									if (bits_per_sample == 32)
-									{
-										float *ch[2];
-										ch[0] = (float*)(pcmhdl->pcmfloat->ch[0]);
-										ch[1] = (float*)(pcmhdl->pcmfloat->ch[1]);
-										imp3 = lame_encode_buffer_ieee_float (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
-									}
-									else if (bits_per_sample == 64)
-									{
-										double *ch[2];
-										ch[0] = (double*)(pcmhdl->pcmdouble->ch[0]);
-										ch[1] = (double*)(pcmhdl->pcmdouble->ch[1]);
-										imp3 = lame_encode_buffer_ieee_double (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
-									}
+									float *ch[2];
+									ch[0] = (float*)(pcmhdl->pcmfloat->ch[0]);
+									ch[1] = (float*)(pcmhdl->pcmfloat->ch[1]);
+									imp3 = lame_encode_buffer_ieee_float (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
+								}
+								else if (bits_per_sample == 64)
+								{
+									double *ch[2];
+									ch[0] = (double*)(pcmhdl->pcmdouble->ch[0]);
+									ch[1] = (double*)(pcmhdl->pcmdouble->ch[1]);
+									imp3 = lame_encode_buffer_ieee_double (lame_gfp,ch[0],ch[1],nread, mp3buffer, LAME_MAXMP3BUFFER );
 								}
 								else 
 								{
+									job->isSupported = 0;
 									goto routine_not_supported;
 								}
 							}
-							/***
-							else if (bits_per_sample > 32)
-							{
-								job->isSupported = 0;
-								goto routine_not_supported;
-							}
-							***/
 							else
 							{
 								job->isSupported = 0;
