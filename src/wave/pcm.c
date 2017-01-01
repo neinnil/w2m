@@ -202,6 +202,35 @@ readPCM_data(pcm_reader_data* pcmhdl, int toread)
 
 	if (pcmhdl && pcmhdl->wave_in)
 	{
+		if (WAVE_FORMAT_PCM == pcmhdl->fmtTag)
+		{
+			if (pcmhdl->bitspersample > 16)
+			{
+				return readPCM_data_int (pcmhdl, toread);
+			}
+			else if (pcmhdl->bitspersample == 8)
+			{
+				return readPCM_data_uint8 (pcmhdl, toread);
+			}
+			else
+			{
+				return readPCM_data_short (pcmhdl, toread);
+			}
+
+		}
+		else if (WAVE_FORMAT_IEEE_FLOAT == pcmhdl->fmtTag)
+		{
+			if (pcmhdl->bitspersample == 64)
+			{
+				return readPCM_data_ieee_double(pcmhdl, toread);
+			}
+			return readPCM_data_ieee_float(pcmhdl, toread);
+		}
+		else 
+		{
+			return -1;
+		}
+		/**
 		if (pcmhdl->bitspersample == 64)
 		{
 			if (pcmhdl->is_ieee_float)
@@ -225,6 +254,7 @@ readPCM_data(pcm_reader_data* pcmhdl, int toread)
 		{
 			return readPCM_data_short (pcmhdl, toread);
 		}
+		**/
 	}
 	return -1;
 }
@@ -539,6 +569,7 @@ int	_setPCM_info_from_wavefileinfo(pcm_reader_data *pcmhdl)
 	{
 		WAVE_FILE_INFO_T	*wfinfo = (WAVE_FILE_INFO_T*)pcmhdl->info;
 		pcmhdl->num_samples_read = 0;
+		pcmhdl->fmtTag = getWAVEFormatTag(wfinfo);
 		pcmhdl->bitspersample = getWAVEBitsPerSample(wfinfo);
 		pcmhdl->nChannels = getWAVEChannels(wfinfo);
 		pcmhdl->sampleRate = getWAVESampleRate(wfinfo);

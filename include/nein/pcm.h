@@ -40,6 +40,7 @@ typedef struct _PcmBuffer PcmBuffer;
 typedef struct _PCM_READER_DATA_T
 {
 	short			nChannels;
+	unsigned short	fmtTag;
 	uint32_t		sampleRate;
 	uint32_t		datalength;
 	int				bitspersample;
