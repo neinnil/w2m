@@ -3,22 +3,20 @@
 This program encodes a set of WAV files to MP3.
 
 Usage:
-w2m <directory name>
+w2m \<directory name\>
 
 
-Development environments
-
- For Windows: Msys2 + MIngw64 on windows7.
+Development environments<br>
+ For Windows: Msys2 + MIngw64 on windows7.<br>
   gcc.exe (Rev2, Built by MSYS2 project) 6.2.0
 
   You can get the guide of installation of Msys2 from msys2 homepage.(<a href="https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/">here</a>)
  
- For Linux: Ubuntu 14.04.5 LTS
+ For Linux: Ubuntu 14.04.5 LTS<br>
   gcc (Ubuntu 4.9.4-2ubuntu1~14.04.1) 4.9.4
 
 
-How to build?
-
+How to build?<br>
 	Download source from Github.
 	And change directory to w2m.
 	Run build.sh
