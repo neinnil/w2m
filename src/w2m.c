@@ -18,8 +18,10 @@
 #include "jobitem.h"
 #include "getname.h"
 #include "nein/debug.h"
+#include "version.h"
 
 void showUsage(char *progname){
+	printf ("%s ,Version: %s\n", progname, NIL_W2M_VERSION);
 	printf ("Usage: %s dir_path \n", progname);
 #if defined (__MINGW32__)
 	printf ("Example: %s F:\\Music \n", progname);
