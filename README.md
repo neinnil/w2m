@@ -11,7 +11,7 @@ Development environments
  For Windows: Msys2 + MIngw64 on windows7.
   gcc.exe (Rev2, Built by MSYS2 project) 6.2.0
 
-  The guide of install of Msys2- https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
+  You can get the guide of installation of Msys2 from msys2 homepage.(https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/)
  
  For Linux: Ubuntu 14.04.5 LTS
   gcc (Ubuntu 4.9.4-2ubuntu1~14.04.1) 4.9.4
@@ -36,7 +36,8 @@ How to build?
 	It is a program for a Little endian system.
 
 
-To Do
+To Do <br>
+
 	The other formats will be supported in future.
 
 
