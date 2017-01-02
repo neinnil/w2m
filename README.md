@@ -25,7 +25,7 @@ How to build?<br>
 	cd w2m
 	./build.sh
 </pre>
-	Then, you get w2m binaray in the build direcotry. (w2m/build)
+	Then, you get w2m binary in the build directory. (w2m/build)
 
 
 Limitations<br>

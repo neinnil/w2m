@@ -23,9 +23,13 @@ else
 LDFLAGS += -lpthread
 endif
 
+ifeq ($(KERNEL), Darwin)
+LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -lmp3lame
+else
 LDFLAGS += -L$(TOP_DIR)/ext_lib/lib -Wl,-Bstatic -lmp3lame
 ifneq ($(findstring MINGW, $(KERNEL)),MINGW)
 LDFLAGS += -Wl,-Bdynamic -lm
+endif
 endif
 
 VPATH += $(TOP_DIR)/src
