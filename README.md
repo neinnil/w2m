@@ -7,16 +7,18 @@ w2m <directory name>
 
 
 Development environments
+
  For Windows: Msys2 + MIngw64 on windows7.
- Installation guide of Msys2
-  Msys2: https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
   gcc.exe (Rev2, Built by MSYS2 project) 6.2.0
+
+  The guide of install of Msys2- https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/
  
  For Linux: Ubuntu 14.04.5 LTS
   gcc (Ubuntu 4.9.4-2ubuntu1~14.04.1) 4.9.4
 
 
 How to build?
+
 	Download source from Github.
 	And change directory to w2m.
 	Run build.sh
@@ -29,6 +31,7 @@ How to build?
 
 
 [Limitations of this program.]
+
 	Now, w2m can only PCM and IEEE_FLOAT formats of WAV.
 	It is a program for a Little endian system.
 
