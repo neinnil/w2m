@@ -81,6 +81,11 @@ getWaveInfo (FILE* infp)
 	}
 
 	pOut->length = (uint32_t)getFileLength (infp);
+	if (pOut->length == 0 || pOut->length == (uint32_t)-1)
+	{
+		NIL_ERROR("File length is zero.\n");
+		goto not_wave_file;
+	}
 	pOut->isWAVEfile = readRIFFHeader (infp, &(pOut->waveHeader));
 	if (pOut->isWAVEfile && 
 			pOut->length != (uint32_t)(pOut->waveHeader.riff.chk_size + 8)) 
@@ -96,7 +101,8 @@ getWaveInfo (FILE* infp)
 		while (!feof(infp))
 		{
 			rc = readNextChunk (infp, &chk);
-			if (rc>0) {
+			if (rc>0 && rc == sizeof(CHUNK_T)) 
+			{
 				long	skip_or_read = (long)chk.chk_size;
 				if (!strncmp((const char*)chk.CHKIDS, "afsp", 4))
 				{ /* temporary.. */
@@ -350,7 +356,7 @@ freeWaveInfo (WAVE_FILE_INFO_T *info)
 
 long getFileLength (FILE *fp)
 {
-	int length = -1L;
+	int length = 0;
 	if (fp) 
 	{
 		if (0==fseek (fp, 0L, SEEK_END))

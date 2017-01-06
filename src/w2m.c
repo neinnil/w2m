@@ -440,7 +440,7 @@ routine_not_supported:
 				}
 
 				if(1==bQuit)
-					set_state(job,WORK_ABORTED);
+					set_state (job,WORK_ABORTED);
 				else
 					set_state (job, WORK_DONE);
 				addItem2Done(workQueue, work);
@@ -559,6 +559,16 @@ int main (int ac, char **av)
 		NIL_DEBUG("looking for files in %s\n", lookingdir);
 		walkThDir (lookingdir, gatheringData);
 		doneCrawling = 1;
+		if (0==getNumbState(workQueue, &nTotal, &nFree, &nDoing, &nDone))
+		{
+			if (nTotal == 0)
+			{
+				bQuit = 1;
+				broadcastingCond();
+			}
+			completedCallBack();
+		}
+
 	}
 
 	waitAllTasks (taskmanager);
