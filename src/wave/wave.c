@@ -411,7 +411,7 @@ int readNextChunk (FILE *fp, CHUNK_T *chunk)
 	if (fp && chunk)
 	{
 		rc = fread (chunk, sizeof(CHUNK_T), 1, fp);
-		if (rc == sizeof(CHUNK_T))
+		if (rc == 1)
 		{
 #if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
 			if (chunk->ID.chkids[0]=='\0')
