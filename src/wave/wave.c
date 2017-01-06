@@ -101,7 +101,7 @@ getWaveInfo (FILE* infp)
 		while (!feof(infp))
 		{
 			rc = readNextChunk (infp, &chk);
-			if (rc>0 && rc == sizeof(CHUNK_T)) 
+			if (rc>0)
 			{
 				long	skip_or_read = (long)chk.chk_size;
 				if (!strncmp((const char*)chk.CHKIDS, "afsp", 4))
@@ -411,7 +411,7 @@ int readNextChunk (FILE *fp, CHUNK_T *chunk)
 	if (fp && chunk)
 	{
 		rc = fread (chunk, sizeof(CHUNK_T), 1, fp);
-		if (rc)
+		if (rc == sizeof(CHUNK_T))
 		{
 #if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
 			if (chunk->ID.chkids[0]=='\0')
