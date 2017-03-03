@@ -2,7 +2,7 @@
  *
     This is neinWav2mp3. 
 	A simple application converts wav filee to mp3 file.
-    Copyright (C) 2016  Park, Sangjun
+    Copyright (C) 2016  Park, Sangjun <neinnil@gmail.com>
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -556,6 +556,7 @@ int main (int ac, char **av)
 	/* check whether  argument is a directory or not? */
 	if (0 != isDirectory((const char*)*(av+1), NULL)){
 		NIL_ERROR ("%s is not a directory.\n", *(av+1));
+		showUsage(*av);
 		return 2;
 	}
 
@@ -566,8 +567,8 @@ int main (int ac, char **av)
 	getNumOfCores(&numOfCores);
 	createTasks(numOfCores);
 
-	lookingdir = strdup(av[1]); //(char*)*(av+1);
-	//lookingdir = (char*)*(av+1);
+	lookingdir = strdup(av[1]);
+	/* lookingdir = (char*)*(av+1); */	
 	if (!lookingdir)
 	{
 		bQuit = 1;
@@ -584,10 +585,10 @@ int main (int ac, char **av)
 			{
 				bQuit = 1;
 				broadcastingCond();
+				NIL_ERROR("There is no files.\n");
 			}
 			completedCallBack();
 		}
-
 	}
 
 	waitAllTasks (taskmanager);
