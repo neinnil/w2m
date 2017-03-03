@@ -585,7 +585,7 @@ int main (int ac, char **av)
 			{
 				bQuit = 1;
 				broadcastingCond();
-				NIL_ERROR("There is no files.\n");
+				NIL_ERROR("There is no file.\n");
 			}
 			completedCallBack();
 		}
