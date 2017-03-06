@@ -104,6 +104,7 @@ static void print_item (workitem_t *wit)
 		printf ("Dst:  %s\n", job->dst?job->dst:"");
 		printf ("Is this file supported to convert? %s\n",
 				job->isSupported?"YES":"NO");
+#if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
 		pcmhdl = (pcm_reader_data*)(job->pcmInfo);
 		if (pcmhdl)
 			winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
@@ -113,6 +114,7 @@ static void print_item (workitem_t *wit)
 			//		wit->priv, wit, wit->list.prev, wit->list.next);
 			printWaveInfo(winfo);
 		}
+#endif
 	}
 }
 
