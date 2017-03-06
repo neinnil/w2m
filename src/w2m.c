@@ -122,7 +122,7 @@ static void print_item (workitem_t *wit)
 		}
 		else 
 		{
-			printf("\n[%s] is not converted.\n", job->src);
+			printf("\n[%s] was not converted.\n", job->src);
 		}
 	}
 }
