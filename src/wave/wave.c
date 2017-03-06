@@ -509,11 +509,11 @@ printWaveInfo(WAVE_FILE_INFO_T *info)
 	{
 		printf("File: %s\n", info->name);
 		printf("Length: %u\n", info->length);
-		printf ("Is it a wave file? %s\n", info->isWAVEfile?"Yes":"No");
+		printf("Is it a wave file? %s\n", info->isWAVEfile?"Yes":"No");
 		if (info->isWAVEfile) 
 		{
 			printChunk(&(info->waveHeader.riff));
-			printf ("ID: [%4.4s] (0x%x)\n"
+			printf("ID: [%4.4s] (0x%x)\n"
 				, info->waveHeader.waveid.WAVEIDS, info->waveHeader.waveid.WAVEID);
 			printWaveFmtInfo ( &(info->waveInfo) );
 			//printChunk(&(info->datainfo.data));
