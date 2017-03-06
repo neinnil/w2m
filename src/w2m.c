@@ -97,24 +97,33 @@ static void print_item (workitem_t *wit)
 	jobitem_t *job = NULL;
 	pcm_reader_data	*pcmhdl = NULL;
 	WAVE_FILE_INFO_T *winfo = NULL;
+	if (!wit) return ;
 	job = (jobitem_t*)(wit->priv);
 	if (job) 
 	{
-		printf ("File: %s\n", job->src?job->src:"");
-		printf ("Dst:  %s\n", job->dst?job->dst:"");
-		printf ("Is this file supported to convert? %s\n",
-				job->isSupported?"YES":"NO");
-#if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
-		pcmhdl = (pcm_reader_data*)(job->pcmInfo);
-		if (pcmhdl)
-			winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
-		if (winfo)
+		if (job->isSupported)
 		{
-			//printf ("%20p | %20p | %20p | %20p \n",
-			//		wit->priv, wit, wit->list.prev, wit->list.next);
-			printWaveInfo(winfo);
-		}
+			printf("[%s] --> [%s]\n", job->src, job->dst);
+			/**
+			printf ("File: %s\n", job->src?job->src:"");
+			printf ("Dst:  %s\n", job->dst?job->dst:"");
+			printf ("Did this file convert to mp3? %s\n",
+					job->isSupported?"YES":"NO");
+			**/
+#if !defined(NDEBUG) && !defined(NIL_DEBUG_OFF)
+			pcmhdl = (pcm_reader_data*)(job->pcmInfo);
+			if (pcmhdl)
+				winfo = (WAVE_FILE_INFO_T *)(pcmhdl->info);
+			if (winfo)
+			{
+				printWaveInfo(winfo);
+			}
 #endif
+		}
+		else 
+		{
+			printf("\n[%s] is not converted.\n", job->src);
+		}
 	}
 }
 
