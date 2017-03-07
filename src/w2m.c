@@ -150,17 +150,17 @@ static void printWorkResult (workqueue_t *wq)
 
 		if (nFree>0) 
 		{
-			printf ("Free working list (%d)\n",nFree);
+			printf ("Free list (%d)\n",nFree);
 			print_list (wq, LIST_OF_FREE, nFree);
 		}
 		if (nDoing>0)
 		{
-			printf ("Doing working list (%d)\n",nDoing);
+			printf ("Doing list (%d)\n",nDoing);
 			print_list (wq, LIST_OF_DOING, nDoing);
 		}
 		if (nDone>0)
 		{
-			printf ("Done working list (%d)\n",nDone);
+			printf ("Done list (%d)\n",nDone);
 			print_list (wq, LIST_OF_DONE, nDone);
 		}
 
