@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "nein/list.h"
+#include "nein/debug.h"
 
 static int  cl_init (struct nlist *p);
 static int	cl_exist(struct nlist **head, struct nlist *item);
@@ -59,7 +60,7 @@ static int cl_exist(struct nlist **head, struct nlist *item)
 static int cl_add (struct nlist **head, struct nlist *item) 
 {
 	if (!head || !item) {
-		printf("Invalied argument.\n");
+		NIL_DEBUG("Invalied argument.\n");
 		return -1;
 	}
 
@@ -88,7 +89,7 @@ static int cl_add_2 (nlist_t **head, nlist_t **tail, nlist_t *item)
 static int cl_del (struct nlist **head, struct nlist *item)
 {
 	if (!head || !(*head) || !item) {
-		printf("Invalied argument.\n");
+		NIL_DEBUG("Invalied argument.\n");
 		return -1;
 	}
 	if (*head == item) {
@@ -123,14 +124,14 @@ static int cl_del_2 (nlist_t **head, nlist_t **tail,nlist_t *item)
 #if 0
 static void print_item (struct nlist *item)
 {
-	printf ("%6d | %20p | %20p | %20p\n",
+	NIL_DEBUG ("%6d | %20p | %20p | %20p\n",
 			item->v, item, item->prev, item->next );
 }
 static void print_list(struct nlist *head) 
 {
 	int count = 0;
 	struct nlist *tr = head;
-	printf ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
+	NIL_DEBUG ("%6s | %-20s | %-20s | %-20s\n","value","addr","prev","next");
 	while (tr && count++ < 8) {
 		print_item (tr);
 		tr = tr->next;
@@ -157,11 +158,11 @@ static void cl_swap (struct nlist **head, struct nlist *x, struct nlist *y)
 		struct nlist *prv, *next;
 		if (xn == xp) {
 		/* there are just two elements. I change the value of head. */
-			printf("Just two elements.\n");
+			NIL_DEBUG("Just two elements.\n");
 			*head = (*head)->next;
 			return;
 		}
-		printf ("neighborhood\n");
+		NIL_DEBUG ("neighborhood\n");
 		if (xn == y) {
 			prv = x;
 			next = y;
@@ -193,10 +194,10 @@ static void cl_swap (struct nlist **head, struct nlist *x, struct nlist *y)
 	}
 
 	if ( *head == x ) {
-		printf("head changed. x->y\n");
+		NIL_DEBUG("head changed. x->y\n");
 		*head = y;
 	} else if ( *head == y ) {
-		printf("head changed. y->x\n");
+		NIL_DEBUG("head changed. y->x\n");
 		*head = x;
 	}
 }
