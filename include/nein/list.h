@@ -31,6 +31,7 @@ typedef struct nlist nlist_t;
 
 #define NLISTSZ sizeof(struct nlist)
 
+/* Be cautious of using the third argument in the next method. */
 struct nlist_op {
 	int (*init)(struct nlist *p);
 	int (*append)(struct nlist **h, struct nlist **t, struct nlist *it);
