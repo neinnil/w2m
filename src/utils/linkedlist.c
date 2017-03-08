@@ -1,4 +1,5 @@
 /*
+## Not Use
     linkedlist.c 
     Copyright (C) 2016  Park, Sangjun
 
