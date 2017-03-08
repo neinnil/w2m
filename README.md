@@ -7,7 +7,7 @@ w2m \<directory name\>
 
 
 Development environments<br>
- For Windows: MSYS + MIngw64 on windows7.<br>
+ For Windows: MSYS2 + MinGW-w64 on windows7.<br>
   gcc.exe (Rev2, Built by MSYS2 project) 6.2.0
 
   You can get the guide of installation of MSYS2 from MSYS2 homepage.(<a href="https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/">here</a>)
