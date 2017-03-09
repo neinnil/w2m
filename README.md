@@ -10,7 +10,7 @@ Development environments<br>
  For Windows: MSYS2 + MinGW-w64 on windows7.<br>
   gcc.exe (Rev2, Built by MSYS2 project) 6.2.0
 
-  You can get the guide of installation of MSYS2 from MSYS2 homepage.(<a href="https://sourceforge.net/p/msys2/wiki/MSYS2%20installation/">here</a>)
+  You can get the guide of installation of MSYS2 from MSYS2 homepage.(<a href="http://www.msys2.org/">here</a>)
  
  For Linux: Ubuntu 14.04.5 LTS<br>
   gcc (Ubuntu 4.9.4-2ubuntu1~14.04.1) 4.9.4
