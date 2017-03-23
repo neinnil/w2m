@@ -609,6 +609,8 @@ int main (int ac, char **av)
 	destroy_wq (&workQueue);
 	destroy_TaskManager(&taskmanager);
 	free(lookingdir);
+	(void)pthread_mutex_destroy(&gMutex);
+	(void)pthread_cond_destroy(&gCond);
 	return 0;
 }
 
