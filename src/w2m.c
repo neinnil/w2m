@@ -271,7 +271,7 @@ void * nilWorks (void *arg)
 				addItem2Doing(workQueue, work);
 				job = (jobitem_t*)(work->priv);
 				NIL_DEBUG ("[%p] working jobs : %s\n", pthread_self(),job->src);
-				set_state (job, WORK_DOING);
+				setStateOfJobitem (job, WORK_DOING);
 				job->isSupported =0;
 				/* check pcm header */
 				/* if this file is pcm file and supported in this program 
@@ -470,9 +470,9 @@ routine_not_supported:
 				}
 
 				if(1==bQuit)
-					set_state (job,WORK_ABORTED);
+					setStateOfJobitem (job,WORK_ABORTED);
 				else
-					set_state (job, WORK_DONE);
+					setStateOfJobitem (job, WORK_DONE);
 				addItem2Done(workQueue, work);
 			}
 		} while (work);
@@ -512,18 +512,18 @@ void gatheringData (const char *fpath)
 	workitem_t *wi = NULL;
 	if (!fpath) return ;
 	NIL_DEBUG (">>> %s\n", fpath);
-	job = alloc_jobitem ((char*)fpath);
+	job = allocJobitem ((char*)fpath);
 	if (!job) {
 		return;
 	}
 	wi = allocWorkItem ((void*)job, sizeof(jobitem_t));
 	if (!wi) {
-		free_jobitem (job);
+		freeJobitem (job);
 		return ;
 	}
 	if (0!=addNewItem (workQueue, wi)){
 		free(wi);
-		free_jobitem (job);
+		freeJobitem (job);
 		return;
 	}
 #if 0
@@ -573,7 +573,7 @@ int main (int ac, char **av)
 
 	init_wq(&workQueue);
 	setCompleteFn (workQueue, completedCallBack);
-	set_Freefunction (freeJobs);
+	setFreeFunction (freeJobs);
 	initTaskManager (&taskmanager);
 	getNumOfCores(&numOfCores);
 	createTasks(numOfCores);

@@ -23,7 +23,7 @@
 
 static void (*free_pcm_data)(void *p) = NULL;
 
-jobitem_t*	alloc_jobitem(char *src)
+jobitem_t*	allocJobitem(char *src)
 {
 	int			rc = 0;
 	jobitem_t	*item = NULL;
@@ -51,7 +51,7 @@ jobitem_t*	alloc_jobitem(char *src)
 	return item;
 }
 
-void	free_jobitem(jobitem_t *ji) 
+void	freeJobitem(jobitem_t *ji) 
 {
 	if (ji) {
 		int	rc = 0;
@@ -70,14 +70,14 @@ void	free_jobitem(jobitem_t *ji)
 	}
 }
 
-void	set_state(jobitem_t *ji, int state)
+void	setStateOfJobitem(jobitem_t *ji, int state)
 {
 	if (ji && state != ji->state) {
 		ji->state = state;
 	}
 }
 
-int		get_state(jobitem_t *ji)
+int		getStateOfJobitem(jobitem_t *ji)
 {
 	if (ji) {
 		return ji->state;
@@ -85,13 +85,13 @@ int		get_state(jobitem_t *ji)
 	return -EINVAL;
 }
 
-void	set_Freefunction(void (*freeFn)(void *p))
+void	setFreeFunction(void (*freeFn)(void *p))
 {
 	if (freeFn) 
 		free_pcm_data = freeFn;
 }
 
-int		isSupported(jobitem_t *ji)
+int		isSupportedJobitem(jobitem_t *ji)
 {
 	if (ji) {
 		return ji->isSupported;
@@ -126,7 +126,7 @@ int		setPcmData (jobitem_t *ji, void *pcmData)
 	return -EINVAL;
 }
 
-int		job_lock (jobitem_t *ji)
+int		lockJobitem (jobitem_t *ji)
 {
 	if (ji) {
 		return pthread_mutex_lock (ji->lock);
@@ -134,7 +134,7 @@ int		job_lock (jobitem_t *ji)
 	return -EINVAL;
 }
 
-int		job_unlock (jobitem_t *ji)
+int		unlockJobitem (jobitem_t *ji)
 {
 	if (ji) {
 		return pthread_mutex_unlock (ji->lock);
@@ -142,7 +142,7 @@ int		job_unlock (jobitem_t *ji)
 	return -EINVAL;
 }
 
-int		job_trylock (jobitem_t *ji)
+int		trylockJobitem (jobitem_t *ji)
 {
 	if (ji) {
 		return pthread_mutex_trylock (ji->lock);
